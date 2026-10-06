@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b10">
+  <title>Admin — RIZVI.NET</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-body">
+  <main id="loginView" class="login-wrap">
+    <a class="brand login-brand" href="index.html">RIZVI<span>.NET</span></a>
+    <section class="login-card">
+      <span class="eyebrow">CONTENT CONTROL</span><h1>ADMIN PANEL</h1><p class="muted">Sign in with your Firebase Authentication admin account.</p>
+      <form id="loginForm" class="stack-form">
+        <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <button class="button button-primary full-button" type="submit">LOGIN</button>
+      </form>
+      <p id="loginError" class="form-error" role="alert"></p>
+      <p class="fine-print">Create your admin account in Firebase Authentication and enable Email/Password sign-in. Use its UID in your Realtime Database rules.</p>
+    </section>
+  </main>
+
+  <div id="adminApp" class="admin-layout" hidden>
+    <aside class="admin-sidebar">
+      <a class="brand" href="index.html">RIZVI<span>.NET</span></a>
+      <p class="sidebar-label">WORKSPACE</p>
+      <button class="admin-menu-toggle" id="adminMenuToggle" type="button" aria-expanded="false" aria-controls="adminNav" aria-label="Open admin menu">☰ <span>Menu</span></button>
+      <nav class="admin-nav" id="adminNav" aria-label="Admin navigation">
+        <button class="admin-nav-button active" data-panel="dashboardPanel">▦ <span>Dashboard</span></button>
+        <button class="admin-nav-button" data-panel="videoFormPanel">＋ <span>Add Video</span></button>
+        <button class="admin-nav-button" data-panel="managePanel">▤ <span>Manage Videos</span></button>
+        <button class="admin-nav-button" data-panel="topVideosPanel">★ <span>Top 3 Videos</span></button>
+        <button class="admin-nav-button" data-panel="categoriesPanel">◈ <span>Categories</span></button>
+        <button class="admin-nav-button" data-panel="settingsPanel">⚙ <span>Settings</span></button>
+        <button id="logoutButton" class="admin-nav-button" type="button">↪ <span>Logout</span></button>
+      </nav>
+      <a class="sidebar-home" href="index.html">← View website</a>
+    </aside>
+    <div class="admin-main">
+      <header class="admin-topbar"><div><span class="eyebrow">RIZVI.NET ADMIN</span><h1 id="adminPageTitle">Dashboard</h1></div><div class="admin-user"><span id="adminEmail"></span></div></header>
+      <div id="adminError" class="notice notice-error" hidden></div>
+      <section id="dashboardPanel" class="admin-panel">
+        <div class="stats-grid">
+          <article class="stat-card"><span>Total videos</span><strong id="statTotal">—</strong><small>In your library</small></article>
+          <article class="stat-card"><span>Published videos</span><strong id="statPublished">—</strong><small>Visible to everyone</small></article>
+          <article class="stat-card"><span>Draft videos</span><strong id="statDraft">—</strong><small>Not shown publicly</small></article>
+          <article class="stat-card"><span>Total views</span><strong id="statViews">—</strong><small>Across all videos</small></article>
+          <article class="stat-card"><span>Categories</span><strong id="statCategories">—</strong><small>Active and inactive</small></article>
+        </div>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">QUICK START</span><h2>Build your catalog</h2></div></div><p class="muted">Add a title, paste your Google Drive share links, then publish. Published videos appear on the public catalog automatically through Firebase.</p><button class="button button-primary" data-go-panel="videoFormPanel">＋ Add a video</button></div>
+      </section>
+      <section id="videoFormPanel" class="admin-panel" hidden>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">LIBRARY</span><h2 id="videoFormTitle">Add a video</h2></div><button id="cancelEditButton" class="button button-ghost" hidden>Cancel edit</button></div>
+          <form id="videoForm" class="admin-form">
+            <input id="editingVideoId" type="hidden">
+            <label>Video title *<input id="videoTitle" maxlength="180" required placeholder="Example Movie"></label>
+            <div class="form-two-col"><label>Thumbnail Google Drive URL *<input id="videoThumbnail" type="url" required placeholder="https://drive.google.com/file/d/..."></label><label>Video Google Drive URL *<input id="videoUrl" type="url" required placeholder="https://drive.google.com/file/d/..."></label></div>
+            <div class="form-two-col"><label>Category *<select id="videoCategory" required><option value="">Choose or add a category first</option></select></label><label>Tags<input id="videoTags" placeholder="Action, Thriller, Movie"></label></div>
+            <label>Description<textarea id="videoDescription" rows="4" placeholder="A short description..."></textarea></label>
+            <div class="form-two-col"><label>Featured<select id="videoFeatured"><option value="false">No</option><option value="true">Yes</option></select></label><label>Status<select id="videoStatus"><option value="published">Published</option><option value="draft">Draft</option></select></label></div>
+            <div class="form-actions"><button class="button button-primary" id="saveVideoButton" type="submit">ADD VIDEO</button><span class="muted">Drive files must be shared so your intended audience can access them.</span></div>
+          </form>
+        </div>
+      </section>
+      <section id="managePanel" class="admin-panel" hidden>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">YOUR LIBRARY</span><h2>Manage videos</h2></div><button class="button button-primary" data-go-panel="videoFormPanel">＋ Add video</button></div>
+          <div class="table-wrap"><table class="admin-table"><thead><tr><th>Thumbnail</th><th>Title</th><th>Category</th><th>Views</th><th>Status</th><th>Actions</th></tr></thead><tbody id="manageVideosBody"><tr><td colspan="6" class="table-empty">Loading videos…</td></tr></tbody></table></div>
+        </div>
+      </section>
+      <section id="topVideosPanel" class="admin-panel" hidden>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">HOMEPAGE FEATURE</span><h2>Top 3 videos</h2></div></div>
+          <p class="muted">Choose up to three published videos to feature prominently on the home page. Changes appear for all visitors after saving.</p>
+          <form id="topVideosForm" class="admin-form top-videos-form">
+            <label>Top video 1<select id="topVideo1"><option value="">Choose a published video</option></select></label>
+            <label>Top video 2<select id="topVideo2"><option value="">Choose a published video</option></select></label>
+            <label>Top video 3<select id="topVideo3"><option value="">Choose a published video</option></select></label>
+            <div class="form-actions"><button class="button button-primary" type="submit">SAVE TOP 3 VIDEOS</button></div>
+          </form>
+        </div>
+      </section>
+      <section id="categoriesPanel" class="admin-panel" hidden>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">ORGANIZE</span><h2>Categories</h2></div></div>
+          <form id="categoryForm" class="category-form"><input id="categoryName" maxlength="60" required placeholder="New category name"><button class="button button-primary" type="submit">Add category</button></form>
+          <div id="adminCategoryList" class="admin-category-list"><p class="muted">Loading categories…</p></div>
+        </div>
+      </section>
+      <section id="settingsPanel" class="admin-panel" hidden>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">SITE CONFIGURATION</span><h2>Advertisement slots</h2></div></div>
+          <p class="muted">Save an HTTPS ad URL or HTML/embed code. Banner ads render in a sandboxed frame. The video pre-roll is shown for 5 seconds before visitors can skip it. Changes save to Firebase and update the public site for everyone.</p>
+          <form id="settingsForm" class="stack-form settings-form">
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="topBanner"> Top banner enabled</label><textarea data-ad-html="topBanner" rows="3" placeholder="Optional ad HTML"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenFeaturedLatest"> Between featured and latest enabled</label><textarea data-ad-html="betweenFeaturedLatest" rows="3" placeholder="Optional ad HTML"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenVideoCards"> Between video sections enabled</label><textarea data-ad-html="betweenVideoCards" rows="3" placeholder="Optional ad HTML"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="videoPageBanner"> Banner below the video player enabled</label><textarea data-ad-html="videoPageBanner" rows="3" placeholder="HTTPS banner URL or HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="footerBanner"> Bottom-of-page banner enabled</label><textarea data-ad-html="footerBanner" rows="3" placeholder="HTTPS banner URL or HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="preRollVideo"> 5-second skippable video ad enabled</label><textarea data-ad-html="preRollVideo" rows="3" placeholder="Direct MP4/WebM HTTPS URL or video embed HTML"></textarea></div>
+            <button class="button button-primary" type="submit">Save settings</button>
+          </form>
+        </div>
+        <div class="admin-card rules-card"><div class="section-heading"><div><span class="eyebrow">SECURITY</span><h2>Realtime Database rules</h2></div></div>
+          <p class="muted">Replace <code>YOUR_ADMIN_UID</code> with your administrator’s Firebase Authentication UID in these rules. Public visitors can only query published videos / enabled categories and increment a published video’s view count by one.</p>
+          <pre class="rules-code"><code>{
+  "rules": {
+    "videos": {
+      ".indexOn": ["status"],
+      ".read": "(auth != null &amp;&amp; auth.uid == 'YOUR_ADMIN_UID') || (query.orderByChild == 'status' &amp;&amp; query.equalTo == 'published')",
+      "$videoId": {
+        ".write": "auth != null &amp;&amp; auth.uid == 'YOUR_ADMIN_UID'",
+        "views": {
+          ".read": "data.parent().child('status').val() == 'published' || (auth != null &amp;&amp; auth.uid == 'YOUR_ADMIN_UID')",
+          ".write": "data.parent().child('status').val() == 'published' &amp;&amp; newData.isNumber() &amp;&amp; newData.val() == (data.val() == null ? 1 : data.val() + 1)",
+          ".validate": "newData.isNumber()"
+        }
+      }
+    },
+    "categories": {
+      ".indexOn": ["status"],
+      ".read": "(auth != null &amp;&amp; auth.uid == 'YOUR_ADMIN_UID') || (query.orderByChild == 'status' &amp;&amp; query.equalTo == 'enabled')",
+      "$categoryId": {
+        ".write": "auth != null &amp;&amp; auth.uid == 'YOUR_ADMIN_UID'"
+      }
+    },
+    "settings": {
+      ".read": true,
+      ".write": "auth != null &amp;&amp; auth.uid == 'YOUR_ADMIN_UID'"
+    },
+    "connectionSignals": {
+      "$uid": {
+        ".read": "auth != null &amp;&amp; auth.uid == $uid",
+        ".write": "auth != null &amp;&amp; auth.uid == $uid"
+      }
+    }
+  }
+}</code></pre>
+          <p class="fine-print">Paste this JSON into Realtime Database → Rules after replacing the UID. Keep the <code>views</code> child rule: it permits only a single +1 transaction on published videos; all other video and category writes require the admin UID. The demo connection signal is written under <code>connectionSignals/{admin UID}</code>. Add the project’s web config and Realtime Database URL in <code>script.js</code>.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="confirmModal" class="modal-backdrop" hidden><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle"><span class="eyebrow">PLEASE CONFIRM</span><h2 id="confirmTitle">Delete this item?</h2><p id="confirmMessage" class="muted">This action cannot be undone.</p><div class="modal-actions"><button id="confirmCancel" class="button button-ghost">Cancel</button><button id="confirmAccept" class="button button-danger">Delete</button></div></section></div>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="script.js" defer></script>
+</body>
+</html>
