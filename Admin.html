@@ -9,16 +9,29 @@
 </head>
 <body class="admin-body">
   <main id="loginView" class="login-wrap">
-    <a class="brand login-brand" href="index.html">RIZVI<span>.NET</span></a>
+    <a class="brand login-brand" id="portalBrand" href="index.html" aria-label="RIZVI.NET home">RIZVI<span>.NET</span></a>
     <section class="login-card">
-      <span class="eyebrow">CONTENT CONTROL</span><h1>ADMIN PANEL</h1><p class="muted">Sign in with your Firebase Authentication admin account.</p>
+      <span class="eyebrow">YOUR RIZVI.NET ACCOUNT</span><h1 id="authHeading">Welcome back</h1><p id="authDescription" class="muted">Sign in or create an account to get started.</p>
       <form id="loginForm" class="stack-form">
+        <label id="displayNameLabel" hidden>Name<input id="displayNameInput" type="text" autocomplete="name" maxlength="80"></label>
         <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
-        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
-        <button class="button button-primary full-button" type="submit">LOGIN</button>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required></label>
+        <button class="button button-primary full-button" id="authSubmitButton" type="submit">SIGN IN</button>
       </form>
+      <button id="authModeToggle" class="text-button auth-mode-toggle" type="button">New here? Create an account</button>
       <p id="loginError" class="form-error" role="alert"></p>
-      <p class="fine-print">Create your admin account in Firebase Authentication and enable Email/Password sign-in. Use its UID in your Realtime Database rules.</p>
+      <p class="fine-print">Your account lets you sign in and see your profile details.</p>
+    </section>
+  </main>
+
+  <main id="accountView" class="login-wrap" hidden>
+    <a class="brand login-brand" id="accountBrand" href="#account" aria-label="RIZVI.NET account">RIZVI<span>.NET</span></a>
+    <section class="login-card account-card">
+      <span class="eyebrow">YOUR ACCOUNT</span><h1>Account details</h1>
+      <dl class="account-details"><div><dt>Name</dt><dd id="accountName">—</dd></div><div><dt>Email</dt><dd id="accountEmail">—</dd></div><div><dt>Account ID</dt><dd id="accountUid">—</dd></div><div><dt>Joined</dt><dd id="accountCreated">—</dd></div></dl>
+      <p id="accountMessage" class="form-error" role="status"></p>
+      <button id="accountLogoutButton" class="button button-ghost full-button" type="button">SIGN OUT</button>
+      <button id="secretAdminButton" class="text-button secret-admin-button" type="button" hidden>Open admin access</button>
     </section>
   </main>
 
