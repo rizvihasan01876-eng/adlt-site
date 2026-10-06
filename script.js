@@ -97,7 +97,10 @@ function showCatalogPage(page) {
   document.getElementById("heroSection").hidden = page !== "home" || !publicState.videos.length;
   document.querySelectorAll(".ad-slot").forEach(slot => {
     const key = slot.dataset.adSlot;
-    slot.hidden = page !== "home" && key !== "footerBanner";
+    const isCatalogAd = key === "betweenVideoCards" && page === "allVideos";
+    const isTrendingAd = key === "trendingBanner" && ["home", "trending"].includes(page);
+    const isSocialBar = key === "socialAdsBar";
+    slot.hidden = page !== "home" && key !== "footerBanner" && key !== "topBanner" && !isCatalogAd && !isTrendingAd && !isSocialBar;
   });
   document.querySelectorAll("#mainNav a").forEach(link => link.classList.toggle("active", link.hash === `#${page}` || (page === "home" && link.hash === "#home")));
 }
@@ -105,10 +108,16 @@ function videoCard(video) {
   const tags = String(video.tags || "").split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 3).join(" · ");
   return `<article class="video-card" data-open-video="${esc(video.id)}" tabindex="0" role="button" aria-label="Watch ${esc(video.title)}"><div class="card-thumb">${imageMarkup(video.thumbnail, video.title)}<span class="card-category">${esc(video.category || "Uncategorized")}</span><span class="play-overlay" aria-hidden="true">▶</span></div><h3 class="card-title">${esc(video.title || "Untitled video")}</h3><div class="card-info"><span>${Number(video.views || 0).toLocaleString()} views</span><span>${esc(formatDate(video.createdAt))}</span></div>${tags ? `<div class="card-tags">${esc(tags)}</div>` : ""}</article>`;
 }
-function renderGrid(elementId, videos, emptyText = "No videos available yet.") {
+function renderGrid(elementId, videos, emptyText = "No videos available yet.", insertVideoAd = false) {
   const element = document.getElementById(elementId);
   if (!element) return;
-  element.innerHTML = videos.length ? videos.map(videoCard).join("") : `<div class="empty-state">${esc(emptyText)}</div>`;
+  if (!videos.length) {
+    element.innerHTML = `<div class="empty-state">${esc(emptyText)}</div>`;
+    return;
+  }
+  const cards = videos.map(videoCard);
+  if (insertVideoAd && videos.length > 12) cards.splice(12, 0, '<div class="ad-slot video-ad-slot" data-ad-slot="betweenVideoCards"></div>');
+  element.innerHTML = cards.join("");
 }
 function renderAllVideosPagination(pageCount) {
   const element = document.getElementById("allVideosPagination");
@@ -136,11 +145,11 @@ function renderPublic() {
   renderGrid("trendingGrid", popular, "No trending videos yet.");
   renderGrid("latestGrid", sorted.slice(0, 8), "No latest videos yet.");
   const filtered = publicState.selectedCategory ? sorted.filter(v => v.category === publicState.selectedCategory) : sorted;
-  const pageSize = 9;
+  const pageSize = 15;
   const pageCount = Math.ceil(filtered.length / pageSize);
   publicState.allVideosPage = Math.min(Math.max(publicState.allVideosPage, 1), Math.max(pageCount, 1));
   const pageVideos = filtered.slice((publicState.allVideosPage - 1) * pageSize, publicState.allVideosPage * pageSize);
-  renderGrid("allVideosGrid", pageVideos, publicState.selectedCategory ? `No videos in ${publicState.selectedCategory} yet.` : "No videos published yet.");
+  renderGrid("allVideosGrid", pageVideos, publicState.selectedCategory ? `No videos in ${publicState.selectedCategory} yet.` : "No videos published yet.", true);
   renderAllVideosPagination(pageCount);
   renderCategories();
   renderSearch();
@@ -182,7 +191,12 @@ function adMarkup(content) {
 function renderAdSlots() {
   document.querySelectorAll(".ad-slot[data-ad-slot]").forEach(slot => {
     const key = slot.dataset.adSlot;
-    const setting = publicState.settings?.ads?.[key];
+    const ads = publicState.settings?.ads || {};
+    const configured = ads[key];
+    const legacyTrendingAd = ads.betweenFeaturedLatest;
+    let setting = configured;
+    if (key === "trendingBanner" && configured?.enabled !== true && legacyTrendingAd?.enabled === true) setting = legacyTrendingAd;
+    if (key === "footerBanner" && (!configured?.enabled || !String(configured.html || "").trim()) && ads.topBanner?.enabled === true) setting = ads.topBanner;
     const enabled = setting?.enabled === true;
     const html = String(setting?.html || "").trim();
     const markup = enabled ? adMarkup(html) : "";
@@ -260,8 +274,9 @@ function openVideo(id) {
   renderVideoPreroll();
   document.getElementById("relatedVideos").innerHTML = publicState.videos.filter(item => item.status === "published" && item.id !== id).sort((a, b) => Number(b.views || 0) - Number(a.views || 0)).slice(0, 6).map(item => `<article class="related-card" data-open-video="${esc(item.id)}">${imageMarkup(item.thumbnail, item.title)}<div><strong>${esc(item.title)}</strong><small>${esc(item.category || "Video")} · ${Number(item.views || 0).toLocaleString()} views</small></div></article>`).join("") || `<p class="muted">No other published videos to suggest yet.</p>`;
   renderAdSlots();
-  document.querySelectorAll(".ad-slot").forEach(slot => { slot.hidden = !["videoPageBanner", "footerBanner"].includes(slot.dataset.adSlot); });
-  page.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.querySelectorAll(".ad-slot").forEach(slot => { slot.hidden = !["videoPageBanner", "footerBanner", "topBanner", "socialAdsBar"].includes(slot.dataset.adSlot); });
+  const topBanner = document.querySelector('.ad-slot[data-ad-slot="topBanner"]');
+  (topBanner && !topBanner.hidden ? topBanner : page).scrollIntoView({ behavior: "smooth", block: "start" });
   history.replaceState(null, "", `#watch=${encodeURIComponent(id)}`);
 }
 function closeVideo(page = publicState.previousPage) {
@@ -619,8 +634,16 @@ async function handleCategoryAction(event) {
 function fillSettings(settings) {
   adminSettings = settings || {};
   const ads = adminSettings.ads || {};
-  document.querySelectorAll("[data-ad-enabled]").forEach(input => { const item = ads[input.dataset.adEnabled] || {}; input.checked = item.enabled === true; });
-  document.querySelectorAll("[data-ad-html]").forEach(input => { input.value = ads[input.dataset.adHtml]?.html || ""; });
+  document.querySelectorAll("[data-ad-enabled]").forEach(input => {
+    const key = input.dataset.adEnabled;
+    const item = ads[key] || (key === "trendingBanner" ? ads.betweenFeaturedLatest : null) || {};
+    input.checked = item.enabled === true;
+  });
+  document.querySelectorAll("[data-ad-html]").forEach(input => {
+    const key = input.dataset.adHtml;
+    const item = ads[key] || (key === "trendingBanner" ? ads.betweenFeaturedLatest : null) || {};
+    input.value = item.html || "";
+  });
   refreshTopVideoSelects(adminSettings.topVideos);
 }
 async function saveTopVideos(event) {
