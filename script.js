@@ -188,6 +188,24 @@ function adMarkup(content) {
   }
   return value;
 }
+let adScriptQueue = Promise.resolve();
+function activateAdScripts(slot) {
+  const scripts = [...slot.querySelectorAll("script")];
+  scripts.forEach(oldScript => {
+    adScriptQueue = adScriptQueue.then(() => new Promise(resolve => {
+      const script = document.createElement("script");
+      [...oldScript.attributes].forEach(attribute => script.setAttribute(attribute.name, attribute.value));
+      script.textContent = oldScript.textContent;
+      if (oldScript.src) {
+        script.async = oldScript.hasAttribute("async");
+        script.addEventListener("load", resolve, { once: true });
+        script.addEventListener("error", resolve, { once: true });
+      }
+      oldScript.replaceWith(script);
+      if (!script.src) resolve();
+    }));
+  });
+}
 function renderAdSlots() {
   document.querySelectorAll(".ad-slot[data-ad-slot]").forEach(slot => {
     const key = slot.dataset.adSlot;
@@ -201,48 +219,10 @@ function renderAdSlots() {
     const html = String(setting?.html || "").trim();
     const markup = enabled ? adMarkup(html) : "";
     slot.classList.toggle("has-ad", !!markup);
+    if (slot.dataset.renderedMarkup === markup) return;
+    slot.dataset.renderedMarkup = markup;
     slot.innerHTML = markup;
-    slot.querySelectorAll("script").forEach(oldScript => {
-      const script = document.createElement("script");
-      [...oldScript.attributes].forEach(attribute => script.setAttribute(attribute.name, attribute.value));
-      script.textContent = oldScript.textContent;
-      oldScript.replaceWith(script);
-    });
-  });
-}
-function renderVideoPreroll() {
-  const layer = document.getElementById("preRollLayer");
-  const player = document.getElementById("videoPlayer");
-  if (!layer || !player) return;
-  clearInterval(publicState.preRollTimer);
-  const setting = publicState.settings?.ads?.preRollVideo;
-  const content = String(setting?.html || "").trim();
-  if (setting?.enabled !== true || !content) {
-    layer.hidden = true;
-    player.hidden = false;
-    return;
-  }
-  const media = isValidUrl(content)
-    ? `<video class="preroll-video" autoplay muted playsinline controls><source src="${esc(convertDriveVideoUrl(content))}"></video>`
-    : `<iframe class="preroll-frame" title="Video advertisement" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(content)}"></iframe>`;
-  layer.innerHTML = `${media}<div class="preroll-controls"><span id="preRollCountdown">Ad · Skip available in 5s</span><button id="skipPreRoll" class="button button-primary" type="button" disabled>Skip in 5s</button></div>`;
-  layer.hidden = false;
-  player.hidden = true;
-  let remaining = 5;
-  publicState.preRollTimer = setInterval(() => {
-    remaining -= 1;
-    const countdown = document.getElementById("preRollCountdown");
-    const skip = document.getElementById("skipPreRoll");
-    if (countdown) countdown.textContent = remaining > 0 ? `Ad · Skip available in ${remaining}s` : "Ad · You can skip now";
-    if (remaining <= 0) {
-      clearInterval(publicState.preRollTimer);
-      if (skip) { skip.disabled = false; skip.textContent = "Skip ad ↗"; }
-    } else if (skip) skip.textContent = `Skip in ${remaining}s`;
-  }, 1000);
-  document.getElementById("skipPreRoll").addEventListener("click", () => {
-    clearInterval(publicState.preRollTimer);
-    layer.hidden = true;
-    player.hidden = false;
+    activateAdScripts(slot);
   });
 }
 function openVideo(id) {
@@ -264,14 +244,12 @@ function openVideo(id) {
   const driveId = extractDriveFileId(video.videoUrl);
   const drivePreview = driveId ? `https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview` : "";
   const playerMarkup = streamableEmbed
-    ? `<iframe id="videoPlayer" src="${esc(streamableEmbed)}" title="${esc(video.title)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" hidden></iframe>`
-    : `<video id="videoPlayer" controls playsinline preload="metadata" poster="${esc(convertDriveImageUrl(video.thumbnail))}" hidden><source src="${esc(source)}"></video>`;
-  page.innerHTML = `<div class="video-page-top"><button class="text-button" id="backToCatalog">← Back to catalog</button><span class="eyebrow">NOW PLAYING</span></div><div class="player-wrap"><div id="preRollLayer" class="preroll-layer" hidden></div>${playerMarkup}<div id="playerFallback" class="player-fallback" hidden>${drivePreview ? `<iframe title="${esc(video.title)}" src="${esc(drivePreview)}" allow="autoplay; encrypted-media" allowfullscreen></iframe>` : `<strong>This video format or link cannot be played in the browser.</strong><span class="muted">Use a direct, browser-compatible MP4/WebM video URL or a supported Streamable link.</span>`}</div></div><div class="ad-slot video-ad-slot" data-ad-slot="videoPageBanner"></div><div class="video-detail-layout"><article class="video-detail"><div class="detail-category">${esc(video.category || "Uncategorized")} · ${esc(formatDate(video.createdAt))}</div><h1>${esc(video.title)}</h1><div class="card-info video-detail-meta"><span>${(Number(video.views || 0) + (publicState.openedViews.has(id) ? 1 : 0)).toLocaleString()} views</span>${video.tags ? `<span>Tags: ${esc(String(video.tags))}</span>` : ""}</div><p class="video-description">${esc(video.description || "No description provided.")}</p></article><section class="related-section" aria-label="Suggested videos"><div class="section-heading"><div><span class="eyebrow">KEEP WATCHING</span><h2>Suggested videos</h2></div></div><div class="related-list" id="relatedVideos"></div></section></div>`;
+    ? `<iframe id="videoPlayer" src="${esc(streamableEmbed)}" title="${esc(video.title)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>`
+    : `<video id="videoPlayer" controls playsinline preload="metadata" poster="${esc(convertDriveImageUrl(video.thumbnail))}"><source src="${esc(source)}"></video>`;
+  page.innerHTML = `<div class="video-page-top"><button class="text-button" id="backToCatalog">← Back to catalog</button><span class="eyebrow">NOW PLAYING</span></div><div class="player-wrap">${playerMarkup}<div id="playerFallback" class="player-fallback" hidden>${drivePreview ? `<iframe title="${esc(video.title)}" src="${esc(drivePreview)}" allow="autoplay; encrypted-media" allowfullscreen></iframe>` : `<strong>This video format or link cannot be played in the browser.</strong><span class="muted">Use a direct, browser-compatible MP4/WebM video URL or a supported Streamable link.</span>`}</div></div><div class="ad-slot video-ad-slot" data-ad-slot="videoPageBanner"></div><div class="video-detail-layout"><article class="video-detail"><div class="detail-category">${esc(video.category || "Uncategorized")} · ${esc(formatDate(video.createdAt))}</div><h1>${esc(video.title)}</h1><div class="card-info video-detail-meta"><span>${(Number(video.views || 0) + (publicState.openedViews.has(id) ? 1 : 0)).toLocaleString()} views</span>${video.tags ? `<span>Tags: ${esc(String(video.tags))}</span>` : ""}</div><p class="video-description">${esc(video.description || "No description provided.")}</p></article><section class="related-section" aria-label="Suggested videos"><div class="section-heading"><div><span class="eyebrow">KEEP WATCHING</span><h2>Suggested videos</h2></div></div><div class="related-list" id="relatedVideos"></div></section></div>`;
   const player = document.getElementById("videoPlayer");
   const fallback = document.getElementById("playerFallback");
   player.addEventListener("error", () => { player.hidden = true; fallback.hidden = false; });
-  player.addEventListener("loadedmetadata", () => { fallback.hidden = true; if (document.getElementById("preRollLayer").hidden) player.hidden = false; });
-  renderVideoPreroll();
   document.getElementById("relatedVideos").innerHTML = publicState.videos.filter(item => item.status === "published" && item.id !== id).sort((a, b) => Number(b.views || 0) - Number(a.views || 0)).slice(0, 6).map(item => `<article class="related-card" data-open-video="${esc(item.id)}">${imageMarkup(item.thumbnail, item.title)}<div><strong>${esc(item.title)}</strong><small>${esc(item.category || "Video")} · ${Number(item.views || 0).toLocaleString()} views</small></div></article>`).join("") || `<p class="muted">No other published videos to suggest yet.</p>`;
   renderAdSlots();
   document.querySelectorAll(".ad-slot").forEach(slot => { slot.hidden = !["videoPageBanner", "footerBanner", "topBanner", "socialAdsBar"].includes(slot.dataset.adSlot); });
