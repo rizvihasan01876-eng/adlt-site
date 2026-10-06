@@ -101,14 +101,39 @@
       </section>
       <section id="settingsPanel" class="admin-panel" hidden>
         <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">SITE CONFIGURATION</span><h2>Advertisement slots</h2></div></div>
-          <p class="muted">Paste an ad image URL or the ad provider’s HTML/embed code. HTML ads are added directly to the page so provider scripts can run; only use code from a trusted ad provider. The video pre-roll is shown for 5 seconds before visitors can skip it. Changes save to Firebase and update the public site for everyone.</p>
+          <p class="muted">Configure each placement separately to keep ads organized. Top and bottom banners share the top-banner creative unless you set a separate footer ad. Changes save to Firebase and update the public site.</p>
+          <div class="ad-placement-guide">
+            <h3>Adsterra setup</h3>
+            <ul>
+              <li>In Adsterra, add and verify your website, then create an ad unit for the placement you want. Copy the complete HTML/JavaScript code from that ad unit and paste it into the matching box below.</li>
+              <li>Use Adsterra <strong>Banner</strong> code for Top, Trending, After 12 videos, Video page, and Bottom placements. Choose a responsive or matching-size banner unit when Adsterra offers that option.</li>
+              <li>Use Adsterra <strong>Social Bar</strong> code only in the Social Ads Bar box. Social Bar is an overlay format, not a regular banner.</li>
+              <li>A Smartlink/direct URL is not banner embed code; it only creates a clickable link. Create the appropriate Adsterra ad unit and paste its full code instead.</li>
+              <li>For multiple placements, create separate Adsterra ad units and use each unit's own code. Enable the matching checkbox and save.</li>
+            </ul>
+            <p class="fine-print">Adsterra controls the delivered creative dimensions and whether an ad fills. Use its generated code unchanged; do not paste only part of the snippet. Ad visibility may also depend on site approval, visitor region, available campaigns, or ad blockers.</p>
+          </div>
+          <div class="ad-placement-guide">
+            <h3>Placement &amp; size guide</h3>
+            <ul>
+              <li><strong>Top banner:</strong> appears below the site header on every public page. Use 970 × 90 px desktop; 320 × 100 px mobile (responsive banner).</li>
+              <li><strong>Trending section:</strong> appears under the Trending heading, before its video cards on the home page. Use a 300 × 250 px rectangle, max 336 × 280 px.</li>
+              <li><strong>After 12 videos:</strong> appears in All Videos after row 4 on desktop (and after 12 cards on mobile). Use a 300 × 250 px rectangle, max 336 × 280 px.</li>
+              <li><strong>Video page banner:</strong> appears directly under the player. Use 970 × 90 px desktop; 320 × 100 px mobile.</li>
+              <li><strong>Bottom banner:</strong> appears at the end of each public page. Leave its code empty to reuse the top banner; otherwise use the same responsive banner sizes.</li>
+              <li><strong>Social Ads Bar:</strong> its Adsterra code is loaded on every public page, including video pages. Adsterra controls the bar's overlay position and behavior; paste its Social Bar code only in this slot.</li>
+              <li><strong>Pre-roll video:</strong> plays over the video player before the skip button appears. Use a 16:9 MP4/WebM video or provider video embed; this is not a page banner.</li>
+            </ul>
+            <p class="fine-print">Use responsive provider code when available. Image URLs are scaled to fit their placement. Ads may not fill if the provider blocks embedding, the ad blocker is on, or the provider has no available ad.</p>
+          </div>
           <form id="settingsForm" class="stack-form settings-form">
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="topBanner"> Top banner enabled</label><textarea data-ad-html="topBanner" rows="3" placeholder="Optional ad HTML"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenFeaturedLatest"> Between featured and latest enabled</label><textarea data-ad-html="betweenFeaturedLatest" rows="3" placeholder="Optional ad HTML"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenVideoCards"> Between video sections enabled</label><textarea data-ad-html="betweenVideoCards" rows="3" placeholder="Optional ad HTML"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="videoPageBanner"> Banner below the video player enabled</label><textarea data-ad-html="videoPageBanner" rows="3" placeholder="HTTPS banner URL or HTML/embed code"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="footerBanner"> Bottom-of-page banner enabled</label><textarea data-ad-html="footerBanner" rows="3" placeholder="HTTPS banner URL or HTML/embed code"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="preRollVideo"> 5-second skippable video ad enabled</label><textarea data-ad-html="preRollVideo" rows="3" placeholder="Direct MP4/WebM HTTPS URL or video embed HTML"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="topBanner"> Top banner — all public pages</label><textarea data-ad-html="topBanner" rows="3" placeholder="Responsive banner URL or provider HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="trendingBanner"> Trending — below heading, before cards</label><textarea data-ad-html="trendingBanner" rows="3" placeholder="300 × 250 image URL or provider HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenVideoCards"> All Videos — after 12 cards</label><textarea data-ad-html="betweenVideoCards" rows="3" placeholder="300 × 250 image URL or provider HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="videoPageBanner"> Video page — below player</label><textarea data-ad-html="videoPageBanner" rows="3" placeholder="Responsive banner URL or provider HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="footerBanner"> Bottom banner — all public pages</label><textarea data-ad-html="footerBanner" rows="3" placeholder="Optional: leave blank to reuse top banner"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="socialAdsBar"> Social Ads Bar — above footer on all public pages</label><textarea data-ad-html="socialAdsBar" rows="3" placeholder="Paste responsive social bar provider HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="preRollVideo"> Video pre-roll — skippable after 5 seconds</label><textarea data-ad-html="preRollVideo" rows="3" placeholder="16:9 MP4/WebM HTTPS URL or video embed HTML"></textarea></div>
             <button class="button button-primary" type="submit">Save settings</button>
           </form>
         </div>
