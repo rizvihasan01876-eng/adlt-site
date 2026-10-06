@@ -171,8 +171,8 @@ function renderSearch() {
 function adFrameMarkup(content, title = "Advertisement") {
   const value = String(content || "").trim();
   if (!value) return "";
-  if (isValidUrl(value)) return `<iframe title="${esc(title)}" sandbox="allow-scripts" src="${esc(value)}" loading="lazy"></iframe>`;
-  return `<iframe title="${esc(title)}" sandbox="allow-scripts" srcdoc="${esc(value)}" loading="lazy"></iframe>`;
+  if (isValidUrl(value)) return `<iframe title="${esc(title)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" src="${esc(value)}" loading="lazy"></iframe>`;
+  return `<iframe title="${esc(title)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(value)}" loading="lazy"></iframe>`;
 }
 function renderAdSlots() {
   document.querySelectorAll(".ad-slot[data-ad-slot]").forEach(slot => {
@@ -198,7 +198,7 @@ function renderVideoPreroll() {
   }
   const media = isValidUrl(content)
     ? `<video class="preroll-video" autoplay muted playsinline controls><source src="${esc(convertDriveVideoUrl(content))}"></video>`
-    : `<iframe class="preroll-frame" title="Video advertisement" sandbox="allow-scripts" srcdoc="${esc(content)}"></iframe>`;
+    : `<iframe class="preroll-frame" title="Video advertisement" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(content)}"></iframe>`;
   layer.innerHTML = `${media}<div class="preroll-controls"><span id="preRollCountdown">Ad · Skip available in 5s</span><button id="skipPreRoll" class="button button-primary" type="button" disabled>Skip in 5s</button></div>`;
   layer.hidden = false;
   player.hidden = true;
@@ -287,37 +287,106 @@ function startPublic() {
 function startAdmin() {
   const loginView = document.getElementById("loginView");
   if (!loginView) return;
-  if (!firebaseReady || !auth) {
-    document.getElementById("loginError").textContent = "Firebase Authentication is unavailable. Check the Firebase web config and auth SDK.";
-    document.getElementById("loginForm").addEventListener("submit", event => { event.preventDefault(); document.getElementById("loginError").textContent = "Firebase Authentication is not configured yet."; });
-    return;
-  }
+  const accountView = document.getElementById("accountView");
   const loginForm = document.getElementById("loginForm");
-  loginForm.addEventListener("submit", async event => {
-    event.preventDefault();
-    document.getElementById("loginError").textContent = "";
-    try { await auth.signInWithEmailAndPassword(document.getElementById("loginEmail").value.trim(), document.getElementById("loginPassword").value); }
-    catch (error) { document.getElementById("loginError").textContent = authError(error); }
-  });
-  document.getElementById("logoutButton").addEventListener("click", () => auth.signOut());
-  auth.onAuthStateChanged(user => {
-    if (user && user.email?.toLowerCase() !== ADMIN_EMAIL) {
-      document.getElementById("loginError").textContent = "This account is not authorized. Sign in with the configured admin email.";
-      auth.signOut();
+  const errorBox = document.getElementById("loginError");
+  const displayNameLabel = document.getElementById("displayNameLabel");
+  const modeToggle = document.getElementById("authModeToggle");
+  const submitButton = document.getElementById("authSubmitButton");
+  let creatingAccount = false;
+  let adminEntryRequested = false;
+  let brandClicks = 0;
+  let brandClickTimer;
+  const setAuthMode = signup => {
+    creatingAccount = signup;
+    document.getElementById("authHeading").textContent = signup ? "Create your account" : "Welcome back";
+    document.getElementById("authDescription").textContent = signup ? "Sign up to create your RIZVI.NET account." : "Sign in to see your account details.";
+    displayNameLabel.hidden = !signup;
+    document.getElementById("displayNameInput").required = signup;
+    document.getElementById("loginPassword").autocomplete = signup ? "new-password" : "current-password";
+    submitButton.textContent = signup ? "CREATE ACCOUNT" : "SIGN IN";
+    modeToggle.textContent = signup ? "Already have an account? Sign in" : "New here? Create an account";
+    errorBox.textContent = "";
+  };
+  modeToggle.addEventListener("click", () => setAuthMode(!creatingAccount));
+  document.getElementById("accountLogoutButton").addEventListener("click", () => auth?.signOut());
+  document.getElementById("logoutButton").addEventListener("click", () => auth?.signOut());
+  document.getElementById("secretAdminButton").addEventListener("click", () => {
+    const user = auth?.currentUser;
+    if (user?.email?.toLowerCase() !== ADMIN_EMAIL) {
+      document.getElementById("accountMessage").textContent = "Admin access is not available for this account.";
       return;
     }
-    loginView.hidden = !!user;
-    document.getElementById("adminApp").hidden = !user;
-    if (!user) return;
-    document.getElementById("loginError").textContent = "";
+    adminEntryRequested = true;
+    accountView.hidden = true;
+    document.getElementById("adminApp").hidden = false;
     document.getElementById("adminEmail").textContent = user.email || "Signed in";
     if (!db) {
       const error = document.getElementById("adminError");
       error.hidden = false;
-      error.textContent = "Login successful, but Realtime Database is not configured. Add the Database URL from Firebase Console to script.js to load and manage catalog data.";
+      error.textContent = "Realtime Database is not configured. Add the Database URL in script.js to manage catalog data.";
       return;
     }
-    startAdminData();
+    if (!adminListenersStarted) startAdminData();
+  });
+  document.getElementById("accountBrand").addEventListener("click", event => {
+    event.preventDefault();
+    brandClicks += 1;
+    clearTimeout(brandClickTimer);
+    brandClickTimer = setTimeout(() => { brandClicks = 0; }, 1800);
+    if (brandClicks >= 5) {
+      brandClicks = 0;
+      document.getElementById("secretAdminButton").hidden = false;
+      document.getElementById("accountMessage").textContent = "";
+    }
+  });
+  if (!firebaseReady || !auth) {
+    errorBox.textContent = "Firebase Authentication is unavailable. Check the Firebase configuration and auth SDK.";
+    loginForm.addEventListener("submit", event => { event.preventDefault(); errorBox.textContent = "Firebase Authentication is not configured yet."; });
+    return;
+  }
+  loginForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    errorBox.textContent = "";
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    try {
+      if (creatingAccount) {
+        const name = document.getElementById("displayNameInput").value.trim();
+        const credential = await auth.createUserWithEmailAndPassword(email, password);
+        if (name) {
+          await credential.user.updateProfile({ displayName: name });
+          document.getElementById("accountName").textContent = name;
+        }
+      } else {
+        await auth.signInWithEmailAndPassword(email, password);
+      }
+    } catch (error) { errorBox.textContent = authError(error); }
+  });
+  auth.onAuthStateChanged(user => {
+    loginView.hidden = !!user;
+    accountView.hidden = !user || adminEntryRequested;
+    document.getElementById("adminApp").hidden = !user || !adminEntryRequested;
+    if (!user) {
+      adminEntryRequested = false;
+      document.getElementById("secretAdminButton").hidden = true;
+      setAuthMode(false);
+      return;
+    }
+    document.getElementById("accountName").textContent = user.displayName || "Not provided";
+    document.getElementById("accountEmail").textContent = user.email || "Not provided";
+    document.getElementById("accountUid").textContent = user.uid;
+    document.getElementById("accountCreated").textContent = user.metadata?.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : "Unavailable";
+    document.getElementById("accountMessage").textContent = "";
+    if (adminEntryRequested && user.email?.toLowerCase() === ADMIN_EMAIL) {
+      document.getElementById("adminEmail").textContent = user.email || "Signed in";
+      if (db && !adminListenersStarted) startAdminData();
+    } else if (adminEntryRequested) {
+      adminEntryRequested = false;
+      accountView.hidden = false;
+      document.getElementById("adminApp").hidden = true;
+      document.getElementById("accountMessage").textContent = "Admin access is not available for this account.";
+    }
   });
 }
 function authError(error) {
