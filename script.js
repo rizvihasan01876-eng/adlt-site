@@ -168,11 +168,16 @@ function renderSearch() {
   const matches = publicState.videos.filter(video => video.status === "published" && [video.title, video.tags, video.category].some(value => String(value || "").toLowerCase().includes(query)));
   renderGrid("searchResults", matches, "No videos found.");
 }
-function adFrameMarkup(content, title = "Advertisement") {
+function adMarkup(content) {
   const value = String(content || "").trim();
   if (!value) return "";
-  if (isValidUrl(value)) return `<iframe title="${esc(title)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" src="${esc(value)}" loading="lazy"></iframe>`;
-  return `<iframe title="${esc(title)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(value)}" loading="lazy"></iframe>`;
+  if (isValidUrl(value)) {
+    if (/\.(?:avif|gif|jpe?g|png|webp|svg)(?:[?#]|$)/i.test(value)) {
+      return `<a class="ad-image-link" href="${esc(value)}" target="_blank" rel="noopener noreferrer"><img src="${esc(value)}" alt="Advertisement" loading="lazy"></a>`;
+    }
+    return `<a class="ad-text-link" href="${esc(value)}" target="_blank" rel="noopener noreferrer">Visit advertiser ↗</a>`;
+  }
+  return value;
 }
 function renderAdSlots() {
   document.querySelectorAll(".ad-slot[data-ad-slot]").forEach(slot => {
@@ -180,8 +185,15 @@ function renderAdSlots() {
     const setting = publicState.settings?.ads?.[key];
     const enabled = setting?.enabled === true;
     const html = String(setting?.html || "").trim();
-    slot.classList.toggle("has-ad", enabled && !!html);
-    slot.innerHTML = enabled && html ? adFrameMarkup(html) : "";
+    const markup = enabled ? adMarkup(html) : "";
+    slot.classList.toggle("has-ad", !!markup);
+    slot.innerHTML = markup;
+    slot.querySelectorAll("script").forEach(oldScript => {
+      const script = document.createElement("script");
+      [...oldScript.attributes].forEach(attribute => script.setAttribute(attribute.name, attribute.value));
+      script.textContent = oldScript.textContent;
+      oldScript.replaceWith(script);
+    });
   });
 }
 function renderVideoPreroll() {
