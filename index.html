@@ -8,12 +8,12 @@
   <title>RIZVI.NET — Watch something great</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="age-gate-active">
   <header class="site-header">
     <a class="brand" href="#home" aria-label="RIZVI.NET home">RIZVI<span>.NET</span></a>
     <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mainNav">☰</button>
     <nav class="main-nav" id="mainNav" aria-label="Main navigation">
-      <a href="#home">Home</a><a href="#categories">Categories</a><a href="#trending">Trending</a><a href="#latest">Latest</a><a href="#allVideos">All Videos</a><a href="Admin.html">Login</a>
+      <a href="#home">Home</a><a href="#categories">Categories</a><a href="#trending">Trending</a><a href="#latest">Latest</a><a href="#allVideos">All Videos</a><a href="#watchlist">Watchlist</a><a href="Admin.html">Login</a>
     </nav>
     <form id="searchForm" class="search-box" role="search">
       <span aria-hidden="true">⌕</span><input id="searchInput" type="search" placeholder="Search videos..." aria-label="Search videos"><button type="button" id="clearSearch" aria-label="Clear search" hidden>×</button>
@@ -46,12 +46,21 @@
       <div class="section-heading"><div><span class="eyebrow">JUST ADDED</span><h2>Latest releases</h2></div></div>
       <div id="latestGrid" class="video-grid"><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div></div>
     </section>
+    <section id="continueWatchingSection" class="content-section" hidden>
+      <div class="section-heading"><div><span class="eyebrow">PICK UP WHERE YOU LEFT OFF</span><h2>Continue watching</h2></div></div>
+      <div id="continueWatchingGrid" class="video-grid"></div>
+    </section>
+    <section id="watchlist" class="content-section" hidden>
+      <div class="section-heading"><div><span class="eyebrow">SAVED FOR LATER</span><h2>Your watchlist</h2></div></div>
+      <div id="watchlistGrid" class="video-grid"></div>
+    </section>
     <section id="categories" class="content-section categories-section">
       <div class="section-heading"><div><span class="eyebrow">BROWSE YOUR WAY</span><h2>Explore categories</h2></div></div>
       <div id="categoryList" class="category-list"><span class="muted">Loading categories…</span></div>
     </section>
     <section id="allVideos" class="content-section">
       <div class="section-heading"><div><span class="eyebrow">THE FULL COLLECTION</span><h2>All videos</h2></div></div>
+      <div class="catalog-filters"><label>Category<select id="catalogCategory"><option value="">All categories</option></select></label><label>Sort by<select id="catalogSort"><option value="latest">Latest</option><option value="popular">Most viewed</option><option value="title">Title A–Z</option></select></label></div>
       <div id="allVideosGrid" class="video-grid"><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div></div>
       <nav id="allVideosPagination" class="pagination" aria-label="All videos pages"></nav>
     </section>
@@ -61,6 +70,44 @@
   </main>
   <footer class="site-footer"><a class="brand" href="#home">RIZVI<span>.NET</span></a><p>© 2026 RIZVI.NET <span>·</span> Stories worth watching.</p></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="ageGate" class="age-gate" role="dialog" aria-modal="true" aria-labelledby="ageGateTitle" aria-describedby="ageGateDescription">
+    <section class="age-gate-card">
+      <span class="age-gate-badge" aria-hidden="true">18+</span>
+      <span class="eyebrow">AGE VERIFICATION</span>
+      <h1 id="ageGateTitle">18+ AGE VERIFICATION</h1>
+      <p id="ageGateDescription">You must be 18 years or older to enter this website.</p>
+      <div class="age-gate-actions">
+        <button id="ageGateEnter" class="button button-primary" type="button">Enter / I’m 18+</button>
+        <button id="ageGateExit" class="button button-ghost" type="button">Exit</button>
+      </div>
+      <p id="ageGateMessage" class="age-gate-message" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const gate = document.getElementById("ageGate");
+      const enter = document.getElementById("ageGateEnter");
+      const exit = document.getElementById("ageGateExit");
+      const message = document.getElementById("ageGateMessage");
+      try {
+        if (sessionStorage.getItem("rizviAgeVerified") === "yes") {
+          gate.hidden = true;
+          document.body.classList.remove("age-gate-active");
+        } else {
+          enter.focus();
+        }
+      } catch (_) { enter.focus(); }
+      enter.addEventListener("click", () => {
+        try { sessionStorage.setItem("rizviAgeVerified", "yes"); } catch (_) {}
+        gate.hidden = true;
+        document.body.classList.remove("age-gate-active");
+      });
+      exit.addEventListener("click", () => {
+        message.textContent = "You chose to exit. This page will close if your browser allows it.";
+        window.location.replace("about:blank");
+      });
+    })();
+  </script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="script.js" defer></script>
