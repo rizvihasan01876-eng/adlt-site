@@ -62,24 +62,28 @@
           <article class="stat-card"><span>Total views</span><strong id="statViews">—</strong><small>Across all videos</small></article>
           <article class="stat-card"><span>Categories</span><strong id="statCategories">—</strong><small>Active and inactive</small></article>
         </div>
-        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">QUICK START</span><h2>Build your catalog</h2></div></div><p class="muted">Add a title, paste your Google Drive share links, then publish. Published videos appear on the public catalog automatically through Firebase.</p><button class="button button-primary" data-go-panel="videoFormPanel">＋ Add a video</button></div>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">PERFORMANCE</span><h2>Most viewed videos</h2></div></div><div id="adminAnalytics" class="analytics-list"><p class="muted">Analytics will appear when videos have views.</p></div></div>
+        <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">QUICK START</span><h2>Build your catalog</h2></div></div><p class="muted">Add a title, use a Google Drive share link for the thumbnail, and paste a YouTube, Vimeo, Dailymotion, TikTok, Facebook, Streamable, Google Drive preview, or direct MP4/WebM link. Other websites may block embedding; those links will show an Open on website button instead.</p><button class="button button-primary" data-go-panel="videoFormPanel">＋ Add a video</button></div>
       </section>
       <section id="videoFormPanel" class="admin-panel" hidden>
         <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">LIBRARY</span><h2 id="videoFormTitle">Add a video</h2></div><button id="cancelEditButton" class="button button-ghost" hidden>Cancel edit</button></div>
           <form id="videoForm" class="admin-form">
             <input id="editingVideoId" type="hidden">
             <label>Video title *<input id="videoTitle" maxlength="180" required placeholder="Example Movie"></label>
-            <div class="form-two-col"><label>Thumbnail Google Drive URL *<input id="videoThumbnail" type="url" required placeholder="https://drive.google.com/file/d/..."></label><label>Video Google Drive URL *<input id="videoUrl" type="url" required placeholder="https://drive.google.com/file/d/..."></label></div>
+            <div class="form-two-col"><label>Thumbnail URL *<input id="videoThumbnail" type="url" required placeholder="Google Drive share link or image URL"><small class="fine-print">A public Google Drive share link works; it is converted to a thumbnail image.</small></label><label>Video URL *<input id="videoUrl" type="url" required placeholder="YouTube, TikTok, Vimeo, or direct MP4 link"><small class="fine-print">YouTube, Vimeo, Dailymotion, TikTok, Facebook, Streamable, Drive preview, and direct MP4/WebM links are supported. Other sites may block embedding; viewers can open those links on the original website.</small></label></div>
+            <div class="form-two-col"><label>Additional quality sources (optional)<textarea id="videoQualities" rows="3" placeholder="720p=https://.../video720.mp4&#10;480p=https://.../video480.mp4"></textarea><small class="fine-print">One quality=direct video URL per line. Available for direct HTML5 video links.</small></label><label>Subtitle file URL (optional)<input id="videoSubtitleUrl" type="url" placeholder="https://.../subtitles.vtt"><small class="fine-print">Use a WebVTT (.vtt) file for direct HTML5 videos. YouTube uses its own captions.</small></label></div>
+            <div class="form-two-col"><label>Subtitle label<input id="videoSubtitleLabel" maxlength="40" placeholder="English or বাংলা"></label><label>Subtitle language code<input id="videoSubtitleLang" maxlength="12" placeholder="en or bn"></label></div>
             <div class="form-two-col"><label>Category *<select id="videoCategory" required><option value="">Choose or add a category first</option></select></label><label>Tags<input id="videoTags" placeholder="Action, Thriller, Movie"></label></div>
             <label>Description<textarea id="videoDescription" rows="4" placeholder="A short description..."></textarea></label>
             <div class="form-two-col"><label>Featured<select id="videoFeatured"><option value="false">No</option><option value="true">Yes</option></select></label><label>Status<select id="videoStatus"><option value="published">Published</option><option value="draft">Draft</option></select></label></div>
-            <div class="form-actions"><button class="button button-primary" id="saveVideoButton" type="submit">ADD VIDEO</button><span class="muted">Drive files must be shared so your intended audience can access them.</span></div>
+            <div class="form-actions"><button class="button button-primary" id="saveVideoButton" type="submit">ADD VIDEO</button><span class="muted">Make the thumbnail and video link accessible to viewers. Hover previews need a direct MP4/WebM/OGG URL.</span></div>
           </form>
         </div>
       </section>
       <section id="managePanel" class="admin-panel" hidden>
         <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">YOUR LIBRARY</span><h2>Manage videos</h2></div><button class="button button-primary" data-go-panel="videoFormPanel">＋ Add video</button></div>
-          <div class="table-wrap"><table class="admin-table"><thead><tr><th>Thumbnail</th><th>Title</th><th>Category</th><th>Views</th><th>Status</th><th>Actions</th></tr></thead><tbody id="manageVideosBody"><tr><td colspan="6" class="table-empty">Loading videos…</td></tr></tbody></table></div>
+          <div class="bulk-actions"><label class="check-label"><input type="checkbox" id="selectAllVideos"> Select all</label><button id="bulkPublishButton" class="button button-ghost" type="button">Publish selected</button><button id="bulkDraftButton" class="button button-ghost" type="button">Set selected to draft</button><button id="bulkDeleteButton" class="button button-danger" type="button">Delete selected</button></div>
+          <div class="table-wrap"><table class="admin-table"><thead><tr><th>Select</th><th>Thumbnail</th><th>Title</th><th>Category</th><th>Views</th><th>Status</th><th>Actions</th></tr></thead><tbody id="manageVideosBody"><tr><td colspan="7" class="table-empty">Loading videos…</td></tr></tbody></table></div>
         </div>
       </section>
       <section id="topVideosPanel" class="admin-panel" hidden>
