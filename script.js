@@ -53,6 +53,74 @@ function convertStreamableEmbedUrl(url) {
     return match ? `https://streamable.com/e/${encodeURIComponent(match[1])}` : null;
   } catch (_) { return null; }
 }
+function convertYoutubeEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id && /^[\w-]{11}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}` : null;
+    }
+    if (!/^(?:youtube\.com|m\.youtube\.com|youtube-nocookie\.com)$/.test(host)) return null;
+    const match = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([\w-]+)/);
+    const id = match?.[1] || (parsed.pathname === "/watch" ? parsed.searchParams.get("v") : null);
+    return id && /^[\w-]{11}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}` : null;
+  } catch (_) { return null; }
+}
+function convertVimeoEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (!/^(?:vimeo\.com|player\.vimeo\.com)$/.test(host)) return null;
+    const match = parsed.pathname.match(/\/(?:video\/)?(\d+)(?:\/|$)/);
+    if (!match) return null;
+    const embed = new URL(`https://player.vimeo.com/video/${match[1]}`);
+    const privateHash = parsed.searchParams.get("h");
+    if (privateHash) embed.searchParams.set("h", privateHash);
+    return embed.href;
+  } catch (_) { return null; }
+}
+function convertDailymotionEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "dai.ly") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.dailymotion.com/embed/video/${encodeURIComponent(id)}` : null;
+    }
+    if (!/^(?:dailymotion\.com|m\.dailymotion\.com)$/.test(host)) return null;
+    const match = parsed.pathname.match(/^\/video\/([^_/?]+)/);
+    return match ? `https://www.dailymotion.com/embed/video/${encodeURIComponent(match[1])}` : null;
+  } catch (_) { return null; }
+}
+function convertTikTokEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (!/^(?:tiktok\.com|m\.tiktok\.com)$/.test(host)) return null;
+    const match = parsed.pathname.match(/\/video\/(\d+)/);
+    return match ? `https://www.tiktok.com/embed/v2/${match[1]}` : null;
+  } catch (_) { return null; }
+}
+function convertFacebookVideoEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    if (!/^(?:facebook\.com|m\.facebook\.com|fb\.watch)$/.test(host)) return null;
+    if (!/\/(?:watch|videos|reel|share\/v|share\/r)(?:\/|\?|$)/i.test(parsed.pathname + parsed.search)) return null;
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(parsed.href)}&show_text=0`;
+  } catch (_) { return null; }
+}
+function isDirectVideoUrl(url) {
+  if (!isValidUrl(url)) return false;
+  try { return /\.(?:mp4|webm|ogg|m4v|mov)(?:$|\/)/i.test(new URL(url).pathname); }
+  catch (_) { return false; }
+}
 window.extractDriveFileId = extractDriveFileId;
 window.convertDriveImageUrl = convertDriveImageUrl;
 window.convertDriveVideoUrl = convertDriveVideoUrl;
@@ -83,16 +151,25 @@ function showFirebaseSetupError(target) {
 }
 
 // Public catalog
-const publicState = { videos: [], categories: [], selectedCategory: "", allVideosPage: 1, openedViews: new Set(), currentVideoId: null, currentPage: "home", previousPage: "home", settings: {} };
+const publicState = { videos: [], categories: [], selectedCategory: "", sortMode: "latest", allVideosPage: 1, openedViews: new Set(), currentVideoId: null, currentPage: "home", previousPage: "home", settings: {} };
+function readStoredList(key) {
+  try { const value = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; } catch (_) { return []; }
+}
+function writeStoredList(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
+function readProgress() {
+  try { return JSON.parse(localStorage.getItem("rizviWatchProgress") || "{}"); } catch (_) { return {}; }
+}
 function showCatalogPage(page) {
-  const validPages = ["home", "categories", "trending", "latest", "allVideos", "search"];
+  const validPages = ["home", "categories", "trending", "latest", "allVideos", "watchlist", "search"];
   page = validPages.includes(page) ? page : "home";
   publicState.currentPage = page;
   const sections = document.querySelectorAll(".content-section");
   sections.forEach(section => {
-    section.hidden = page === "home"
-      ? section.id === "searchSection" && !(document.getElementById("searchInput")?.value || "").trim()
-      : section.id !== (page === "search" ? "searchSection" : page);
+    if (page === "home") {
+      section.hidden = section.id === "watchlist" || (section.id === "searchSection" && !(document.getElementById("searchInput")?.value || "").trim());
+    } else {
+      section.hidden = section.id !== (page === "search" ? "searchSection" : page);
+    }
   });
   document.getElementById("heroSection").hidden = page !== "home" || !publicState.videos.length;
   document.querySelectorAll(".ad-slot").forEach(slot => {
@@ -104,9 +181,50 @@ function showCatalogPage(page) {
   });
   document.querySelectorAll("#mainNav a").forEach(link => link.classList.toggle("active", link.hash === `#${page}` || (page === "home" && link.hash === "#home")));
 }
+function previewVideoUrl(videoUrl) {
+  if (!isValidUrl(videoUrl) || extractDriveFileId(videoUrl) || convertStreamableEmbedUrl(videoUrl)) return "";
+  try {
+    const path = new URL(videoUrl).pathname;
+    return /\.(?:mp4|webm|ogg|m4v)$/i.test(path) ? videoUrl : "";
+  } catch (_) { return ""; }
+}
+function startCardPreview(card) {
+  if (card.querySelector(".card-preview")) return;
+  const video = publicState.videos.find(item => item.id === card.dataset.openVideo);
+  const src = video && previewVideoUrl(video.videoUrl);
+  const container = card.querySelector(".card-thumb, .top-video-image");
+  if (!src || !container) return;
+  const preview = document.createElement("video");
+  preview.className = "card-preview";
+  preview.src = src;
+  preview.muted = true;
+  preview.defaultMuted = true;
+  preview.playsInline = true;
+  preview.preload = "none";
+  preview.setAttribute("aria-hidden", "true");
+  preview.addEventListener("timeupdate", () => {
+    if (preview.currentTime >= 4) stopCardPreview(card);
+  });
+  preview.addEventListener("playing", () => card.classList.add("is-previewing"), { once: true });
+  preview.addEventListener("error", () => { preview.remove(); card.classList.remove("is-previewing"); }, { once: true });
+  container.append(preview);
+  preview.play().catch(() => { preview.remove(); });
+}
+function stopCardPreview(card) {
+  const preview = card.querySelector(".card-preview");
+  if (!preview) return;
+  preview.pause();
+  preview.removeAttribute("src");
+  preview.load();
+  preview.remove();
+  card.classList.remove("is-previewing");
+}
 function videoCard(video) {
   const tags = String(video.tags || "").split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 3).join(" · ");
-  return `<article class="video-card" data-open-video="${esc(video.id)}" tabindex="0" role="button" aria-label="Watch ${esc(video.title)}"><div class="card-thumb">${imageMarkup(video.thumbnail, video.title)}<span class="card-category">${esc(video.category || "Uncategorized")}</span><span class="play-overlay" aria-hidden="true">▶</span></div><h3 class="card-title">${esc(video.title || "Untitled video")}</h3><div class="card-info"><span>${Number(video.views || 0).toLocaleString()} views</span><span>${esc(formatDate(video.createdAt))}</span></div>${tags ? `<div class="card-tags">${esc(tags)}</div>` : ""}</article>`;
+  const descriptionLine = [video.category || "Uncategorized", tags].filter(Boolean).join(" · ");
+  const saved = readStoredList("rizviWatchlist").includes(video.id);
+  const progress = Number(readProgress()[video.id]?.percent || 0);
+  return `<article class="video-card" data-open-video="${esc(video.id)}" tabindex="0" role="button" aria-label="Watch ${esc(video.title)}"><div class="card-thumb">${imageMarkup(video.thumbnail, video.title)}${progress > 0 && progress < 95 ? `<span class="progress-track"><i style="width:${Math.min(progress, 100)}%"></i></span>` : ""}</div><h3 class="card-title">${esc(video.title || "Untitled video")}</h3><div class="card-info"><span>${Number(video.views || 0).toLocaleString()} views</span><span>${esc(formatDate(video.createdAt))}</span></div><div class="card-tags">${esc(descriptionLine)}</div></article>`;
 }
 function renderGrid(elementId, videos, emptyText = "No videos available yet.", insertVideoAd = false) {
   const element = document.getElementById(elementId);
@@ -138,13 +256,14 @@ function renderPublic() {
     const topIds = Array.isArray(savedIds) ? savedIds : Object.values(savedIds || {});
     const chosen = topIds.map(id => videos.find(video => video.id === id)).filter(Boolean);
     const topVideos = [...new Map([...chosen, ...sorted].map(video => [video.id, video])).values()].slice(0, 3);
-    hero.innerHTML = topVideos.length ? `<div class="top-videos-grid">${topVideos.map((video, index) => `<article class="top-video-card" data-open-video="${esc(video.id)}" tabindex="0" role="button" aria-label="Watch ${esc(video.title)}"><div class="top-video-image">${imageMarkup(video.thumbnail, video.title)}<span class="top-video-rank">0${index + 1}</span><span class="play-overlay" aria-hidden="true">▶</span></div><div class="top-video-copy"><span class="eyebrow">TOP PICK 0${index + 1} · ${esc(video.category || "MOVIE")}</span><h3>${esc(video.title || "Untitled video")}</h3><span class="top-video-views">${Number(video.views || 0).toLocaleString()} views</span></div></article>`).join("")}</div>` : "";
+    hero.innerHTML = topVideos.length ? `<div class="top-videos-grid">${topVideos.map((video, index) => `<article class="top-video-card" data-open-video="${esc(video.id)}" tabindex="0" role="button" aria-label="Watch ${esc(video.title)}"><div class="top-video-image">${imageMarkup(video.thumbnail, video.title)}<span class="top-video-rank">0${index + 1}</span></div><div class="top-video-copy"><span class="eyebrow">TOP PICK 0${index + 1} · ${esc(video.category || "MOVIE")}</span><h3>${esc(video.title || "Untitled video")}</h3><span class="top-video-views">${Number(video.views || 0).toLocaleString()} views</span></div></article>`).join("")}</div>` : "";
     hero.hidden = !topVideos.length;
   }
   const popular = [...videos].sort((a,b) => Number(b.views || 0) - Number(a.views || 0)).slice(0, 8);
   renderGrid("trendingGrid", popular, "No trending videos yet.");
   renderGrid("latestGrid", sorted.slice(0, 8), "No latest videos yet.");
-  const filtered = publicState.selectedCategory ? sorted.filter(v => v.category === publicState.selectedCategory) : sorted;
+  const categoryFilter = publicState.selectedCategory ? sorted.filter(v => v.category === publicState.selectedCategory) : sorted;
+  const filtered = [...categoryFilter].sort((a, b) => publicState.sortMode === "popular" ? Number(b.views || 0) - Number(a.views || 0) : publicState.sortMode === "title" ? String(a.title || "").localeCompare(String(b.title || "")) : Number(b.createdAt || 0) - Number(a.createdAt || 0));
   const pageSize = 15;
   const pageCount = Math.ceil(filtered.length / pageSize);
   publicState.allVideosPage = Math.min(Math.max(publicState.allVideosPage, 1), Math.max(pageCount, 1));
@@ -152,6 +271,8 @@ function renderPublic() {
   renderGrid("allVideosGrid", pageVideos, publicState.selectedCategory ? `No videos in ${publicState.selectedCategory} yet.` : "No videos published yet.", true);
   renderAllVideosPagination(pageCount);
   renderCategories();
+  renderContinueWatching();
+  renderWatchlist();
   renderSearch();
   renderAdSlots();
   if (!publicState.currentVideoId) showCatalogPage(publicState.currentPage);
@@ -161,6 +282,29 @@ function renderCategories() {
   if (!element) return;
   const categories = publicState.categories.filter(category => category.status === "enabled").sort((a,b) => String(a.name).localeCompare(String(b.name)));
   element.innerHTML = `<button class="category-chip ${!publicState.selectedCategory ? "active" : ""}" data-category="">All videos</button>` + categories.map(category => `<button class="category-chip ${publicState.selectedCategory === category.name ? "active" : ""}" data-category="${esc(category.name)}">${esc(category.name)}</button>`).join("");
+  const select = document.getElementById("catalogCategory");
+  if (select) {
+    const current = publicState.selectedCategory;
+    select.innerHTML = `<option value="">All categories</option>` + categories.map(category => `<option value="${esc(category.name)}">${esc(category.name)}</option>`).join("");
+    select.value = categories.some(category => category.name === current) ? current : "";
+  }
+}
+function renderContinueWatching() {
+  const section = document.getElementById("continueWatchingSection");
+  const grid = document.getElementById("continueWatchingGrid");
+  if (!section || !grid) return;
+  const progress = readProgress();
+  const videos = publicState.videos.filter(video => video.status === "published" && Number(progress[video.id]?.percent) > 0 && Number(progress[video.id]?.percent) < 95)
+    .sort((a, b) => Number(progress[b.id]?.updatedAt || 0) - Number(progress[a.id]?.updatedAt || 0)).slice(0, 6);
+  section.hidden = !videos.length || publicState.currentPage !== "home" || Boolean(publicState.currentVideoId);
+  renderGrid("continueWatchingGrid", videos, "No videos in progress.");
+}
+function renderWatchlist() {
+  const grid = document.getElementById("watchlistGrid");
+  if (!grid) return;
+  const savedIds = readStoredList("rizviWatchlist");
+  const videos = savedIds.map(id => publicState.videos.find(video => video.id === id && video.status === "published")).filter(Boolean);
+  renderGrid("watchlistGrid", videos, "Your watchlist is empty. Save videos using the + button beside the title while watching.");
 }
 function renderSearch() {
   const input = document.getElementById("searchInput");
@@ -174,7 +318,7 @@ function renderSearch() {
   }
   showCatalogPage("search");
   document.getElementById("searchHeading").textContent = `Search results for: “${input.value.trim()}”`;
-  const matches = publicState.videos.filter(video => video.status === "published" && [video.title, video.tags, video.category].some(value => String(value || "").toLowerCase().includes(query)));
+  const matches = publicState.videos.filter(video => video.status === "published" && [video.title, video.tags, video.category, video.description].some(value => String(value || "").toLowerCase().includes(query)));
   renderGrid("searchResults", matches, "No videos found.");
 }
 function adMarkup(content) {
@@ -240,17 +384,61 @@ function openVideo(id) {
   const page = document.getElementById("videoPage");
   page.hidden = false;
   const streamableEmbed = convertStreamableEmbedUrl(video.videoUrl);
-  const source = convertDriveVideoUrl(video.videoUrl);
+  const youtubeEmbed = convertYoutubeEmbedUrl(video.videoUrl);
+  const vimeoEmbed = convertVimeoEmbedUrl(video.videoUrl);
+  const dailymotionEmbed = convertDailymotionEmbedUrl(video.videoUrl);
+  const tikTokEmbed = convertTikTokEmbedUrl(video.videoUrl);
+  const facebookEmbed = convertFacebookVideoEmbedUrl(video.videoUrl);
+  const providerEmbed = youtubeEmbed || streamableEmbed || vimeoEmbed || dailymotionEmbed || tikTokEmbed || facebookEmbed;
   const driveId = extractDriveFileId(video.videoUrl);
   const drivePreview = driveId ? `https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview` : "";
-  const playerMarkup = streamableEmbed
-    ? `<iframe id="videoPlayer" src="${esc(streamableEmbed)}" title="${esc(video.title)}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>`
-    : `<video id="videoPlayer" controls playsinline preload="metadata" poster="${esc(convertDriveImageUrl(video.thumbnail))}"><source src="${esc(source)}"></video>`;
-  page.innerHTML = `<div class="video-page-top"><button class="text-button" id="backToCatalog">← Back to catalog</button><span class="eyebrow">NOW PLAYING</span></div><div class="player-wrap">${playerMarkup}<div id="playerFallback" class="player-fallback" hidden>${drivePreview ? `<iframe title="${esc(video.title)}" src="${esc(drivePreview)}" allow="autoplay; encrypted-media" allowfullscreen></iframe>` : `<strong>This video format or link cannot be played in the browser.</strong><span class="muted">Use a direct, browser-compatible MP4/WebM video URL or a supported Streamable link.</span>`}</div></div><div class="ad-slot video-ad-slot" data-ad-slot="videoPageBanner"></div><div class="video-detail-layout"><article class="video-detail"><div class="detail-category">${esc(video.category || "Uncategorized")} · ${esc(formatDate(video.createdAt))}</div><h1>${esc(video.title)}</h1><div class="card-info video-detail-meta"><span>${(Number(video.views || 0) + (publicState.openedViews.has(id) ? 1 : 0)).toLocaleString()} views</span>${video.tags ? `<span>Tags: ${esc(String(video.tags))}</span>` : ""}</div><p class="video-description">${esc(video.description || "No description provided.")}</p></article><section class="related-section" aria-label="Suggested videos"><div class="section-heading"><div><span class="eyebrow">KEEP WATCHING</span><h2>Suggested videos</h2></div></div><div class="related-list" id="relatedVideos"></div></section></div>`;
+  const source = driveId ? convertDriveVideoUrl(video.videoUrl) : video.videoUrl;
+  const directVideo = isDirectVideoUrl(video.videoUrl);
+  const qualityList = Array.isArray(video.qualities) ? video.qualities : Object.values(video.qualities || {});
+  const qualities = qualityList.filter(item => item && item.url && isValidUrl(item.url));
+  const supportsHtmlVideo = directVideo;
+  const subtitleMarkup = supportsHtmlVideo && video.subtitleUrl && isValidUrl(video.subtitleUrl) ? `<track kind="subtitles" src="${esc(video.subtitleUrl)}" srclang="${esc(video.subtitleLang || "en")}" label="${esc(video.subtitleLabel || "Subtitles")}" default>` : "";
+  const playerMarkup = providerEmbed
+    ? `<iframe id="videoPlayer" src="${esc(providerEmbed)}" title="${esc(video.title)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>`
+    : drivePreview
+      ? `<iframe id="videoPlayer" src="${esc(drivePreview)}" title="${esc(video.title)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>`
+      : directVideo
+        ? `<video id="videoPlayer" controls playsinline preload="metadata" poster="${esc(convertDriveImageUrl(video.thumbnail))}"><source src="${esc(source)}">${subtitleMarkup}</video>`
+        : `<div class="player-fallback"><strong>This website does not allow its video to be embedded here.</strong><span class="muted">Try a YouTube, Vimeo, Dailymotion, TikTok, Facebook, Streamable, Drive preview, or direct MP4/WebM link instead.</span><a class="button button-primary" href="${esc(video.videoUrl)}" target="_blank" rel="noopener noreferrer">Open video on its website ↗</a></div>`;
+  const saved = readStoredList("rizviWatchlist").includes(id);
+  const qualityControl = supportsHtmlVideo && qualities.length ? `<label class="quality-control">Quality <select id="qualitySelect"><option value="${esc(source)}">Original</option>${qualities.map(item => `<option value="${esc(item.url)}">${esc(item.label)}</option>`).join("")}</select></label>` : "";
+  page.innerHTML = `<div class="video-page-top"><button class="text-button" id="backToCatalog">← Back to catalog</button><span class="eyebrow">NOW PLAYING</span></div><div class="player-wrap">${playerMarkup}<div id="playerFallback" class="player-fallback" hidden><strong>This video could not be loaded.</strong><span class="muted">Check that the link is public and allows playback or embedding.</span><a class="button button-primary" href="${esc(video.videoUrl)}" target="_blank" rel="noopener noreferrer">Open video on its website ↗</a></div></div><div class="player-extras">${qualityControl}</div><div class="ad-slot video-ad-slot" data-ad-slot="videoPageBanner"></div><div class="video-detail-layout"><article class="video-detail"><div class="video-title-row"><h1>${esc(video.title)}</h1><button class="watchlist-toggle player-watchlist-toggle${saved ? " saved" : ""}" type="button" data-toggle-watchlist="${esc(id)}" aria-pressed="${saved}" aria-label="${saved ? "Remove from" : "Add to"} watchlist">${saved ? "♥" : "＋"}</button></div><div class="card-info video-detail-meta"><span>${(Number(video.views || 0) + (publicState.openedViews.has(id) ? 1 : 0)).toLocaleString()} views</span><span>${esc(formatDate(video.createdAt))}</span>${video.tags ? `<span>Tags: ${esc(String(video.tags))}</span>` : ""}</div><details class="video-description-box"><summary><strong>${esc(video.category || "Uncategorized")}</strong><span class="description-preview">${esc(video.description || "No description provided.")}</span><span class="description-more">more</span><span class="description-less">less</span></summary><div class="video-description">${esc(video.description || "No description provided.")}</div></details></article><section class="related-section" aria-label="Suggested videos"><div class="section-heading"><div><span class="eyebrow">KEEP WATCHING</span><h2>Suggested videos</h2></div></div><div class="related-list" id="relatedVideos"></div></section></div>`;
   const player = document.getElementById("videoPlayer");
   const fallback = document.getElementById("playerFallback");
-  player.addEventListener("error", () => { player.hidden = true; fallback.hidden = false; });
-  document.getElementById("relatedVideos").innerHTML = publicState.videos.filter(item => item.status === "published" && item.id !== id).sort((a, b) => Number(b.views || 0) - Number(a.views || 0)).slice(0, 6).map(item => `<article class="related-card" data-open-video="${esc(item.id)}">${imageMarkup(item.thumbnail, item.title)}<div><strong>${esc(item.title)}</strong><small>${esc(item.category || "Video")} · ${Number(item.views || 0).toLocaleString()} views</small></div></article>`).join("") || `<p class="muted">No other published videos to suggest yet.</p>`;
+  if (player?.tagName === "VIDEO") {
+    player.addEventListener("error", () => { player.hidden = true; fallback.hidden = false; });
+    const progress = readProgress();
+    player.addEventListener("loadedmetadata", () => {
+      const savedTime = Number(progress[id]?.time || 0);
+      if (savedTime > 5 && savedTime < player.duration - 5) player.currentTime = savedTime;
+    }, { once: true });
+    player.addEventListener("timeupdate", () => {
+      if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+      const percent = Math.round(player.currentTime / player.duration * 100);
+      const current = readProgress();
+      if (percent >= 95) delete current[id];
+      else current[id] = { time: player.currentTime, percent, updatedAt: Date.now() };
+      try { localStorage.setItem("rizviWatchProgress", JSON.stringify(current)); } catch (_) {}
+    });
+    player.addEventListener("pause", renderContinueWatching);
+    const qualitySelect = document.getElementById("qualitySelect");
+    qualitySelect?.addEventListener("change", () => {
+      const time = player.currentTime;
+      const wasPlaying = !player.paused;
+      player.querySelector("source").src = qualitySelect.value;
+      player.load();
+      player.addEventListener("loadedmetadata", () => {
+        player.currentTime = Math.min(time, Math.max(0, player.duration - 1));
+        if (wasPlaying) player.play().catch(() => {});
+      }, { once: true });
+    });
+  }
+  document.getElementById("relatedVideos").innerHTML = publicState.videos.filter(item => item.status === "published" && item.id !== id).sort((a, b) => Number(b.category === video.category) - Number(a.category === video.category) || Number(b.views || 0) - Number(a.views || 0)).slice(0, 6).map(item => `<article class="related-card" data-open-video="${esc(item.id)}">${imageMarkup(item.thumbnail, item.title)}<div><strong>${esc(item.title)}</strong><small>${esc(item.category || "Video")} · ${Number(item.views || 0).toLocaleString()} views</small></div></article>`).join("") || `<p class="muted">No other published videos to suggest yet.</p>`;
   renderAdSlots();
   document.querySelectorAll(".ad-slot").forEach(slot => { slot.hidden = !["videoPageBanner", "footerBanner", "topBanner", "socialAdsBar"].includes(slot.dataset.adSlot); });
   const topBanner = document.querySelector('.ad-slot[data-ad-slot="topBanner"]');
@@ -258,9 +446,11 @@ function openVideo(id) {
   history.replaceState(null, "", `#watch=${encodeURIComponent(id)}`);
 }
 function closeVideo(page = publicState.previousPage) {
+  const player = document.getElementById("videoPlayer");
+  if (player?.tagName === "VIDEO") player.pause();
   publicState.currentVideoId = null;
   document.getElementById("videoPage").hidden = true;
-  const targetPage = ["home", "categories", "trending", "latest", "allVideos"].includes(page) ? page : "home";
+  const targetPage = ["home", "categories", "trending", "latest", "allVideos", "watchlist"].includes(page) ? page : "home";
   history.replaceState(null, "", `${location.pathname}${location.search}#${targetPage}`);
   publicState.currentPage = targetPage;
   renderPublic();
@@ -434,7 +624,13 @@ function renderAdmin() {
   document.getElementById("statCategories").textContent = adminCategories.length.toLocaleString();
   const body = document.getElementById("manageVideosBody");
   const ordered = [...adminVideos].sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-  body.innerHTML = ordered.length ? ordered.map(video => `<tr><td>${imageMarkup(video.thumbnail, video.title, "table-thumb")}</td><td><span class="table-title">${esc(video.title || "Untitled")}</span></td><td>${esc(video.category || "—")}</td><td>${Number(video.views || 0).toLocaleString()}</td><td><span class="status-pill ${video.status === "published" ? "" : "draft"}">${video.status === "published" ? "Published" : "Draft"}</span></td><td><div class="table-actions"><button class="small-action" data-edit-video="${esc(video.id)}">Edit</button><button class="small-action" data-toggle-publish="${esc(video.id)}">${video.status === "published" ? "Unpublish" : "Publish"}</button><button class="small-action" data-toggle-feature="${esc(video.id)}">${video.featured ? "Unfeature" : "Feature"}</button><button class="small-action delete" data-delete-video="${esc(video.id)}">Delete</button></div></td></tr>`).join("") : `<tr><td colspan="6" class="table-empty">No videos in your library. Add your first video.</td></tr>`;
+  body.innerHTML = ordered.length ? ordered.map(video => `<tr><td><input class="video-select" type="checkbox" data-select-video="${esc(video.id)}" aria-label="Select ${esc(video.title)}"></td><td>${imageMarkup(video.thumbnail, video.title, "table-thumb")}</td><td><span class="table-title">${esc(video.title || "Untitled")}</span></td><td>${esc(video.category || "—")}</td><td>${Number(video.views || 0).toLocaleString()}</td><td><span class="status-pill ${video.status === "published" ? "" : "draft"}">${video.status === "published" ? "Published" : "Draft"}</span></td><td><div class="table-actions"><button class="small-action" data-edit-video="${esc(video.id)}">Edit</button><button class="small-action" data-toggle-publish="${esc(video.id)}">${video.status === "published" ? "Unpublish" : "Publish"}</button><button class="small-action" data-toggle-feature="${esc(video.id)}">${video.featured ? "Unfeature" : "Feature"}</button><button class="small-action delete" data-delete-video="${esc(video.id)}">Delete</button></div></td></tr>`).join("") : `<tr><td colspan="7" class="table-empty">No videos in your library. Add your first video.</td></tr>`;
+  const analytics = document.getElementById("adminAnalytics");
+  if (analytics) {
+    const top = [...adminVideos].sort((a, b) => Number(b.views || 0) - Number(a.views || 0)).slice(0, 5);
+    const categoryTotals = adminVideos.reduce((totals, video) => { const name = video.category || "Uncategorized"; totals[name] = (totals[name] || 0) + (Number(video.views) || 0); return totals; }, {});
+    analytics.innerHTML = top.length ? `<ol class="analytics-top">${top.map(video => `<li><span>${esc(video.title || "Untitled")}</span><strong>${Number(video.views || 0).toLocaleString()} views</strong></li>`).join("")}</ol><div class="analytics-categories">${Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).map(([name, views]) => `<span>${esc(name)}: ${views.toLocaleString()} views</span>`).join("")}</div>` : `<p class="muted">Analytics will appear when videos have views.</p>`;
+  }
   renderAdminCategories();
   refreshCategorySelect();
   refreshTopVideoSelects(adminSettings.topVideos);
@@ -461,6 +657,17 @@ function refreshTopVideoSelects(selected = null) {
     select.innerHTML = `<option value="">Choose a published video</option>` + published.map(video => `<option value="${esc(video.id)}">${esc(video.title || "Untitled video")}</option>`).join("");
     if (published.some(video => video.id === value)) select.value = value;
   });
+}
+function selectedAdminVideoIds() {
+  return [...document.querySelectorAll("[data-select-video]:checked")].map(input => input.dataset.selectVideo);
+}
+async function bulkUpdateVideos(status) {
+  const ids = selectedAdminVideoIds();
+  if (!ids.length) { showToast("Select at least one video first.", true); return; }
+  try {
+    await Promise.all(ids.map(id => db.ref(`videos/${id}/status`).set(status)));
+    showToast(`${ids.length} video${ids.length === 1 ? "" : "s"} updated.`);
+  } catch (error) { showToast(`Bulk update failed: ${error.message}`, true); }
 }
 function wireAdminUI() {
   if (wireAdminUI.done) return;
@@ -498,6 +705,21 @@ function wireAdminUI() {
   document.getElementById("settingsForm").addEventListener("submit", saveSettings);
   document.getElementById("cancelEditButton").addEventListener("click", resetVideoForm);
   document.getElementById("manageVideosBody").addEventListener("click", handleVideoAction);
+  document.getElementById("manageVideosBody").addEventListener("change", event => {
+    if (event.target.matches("[data-select-video]") && !event.target.checked) document.getElementById("selectAllVideos").checked = false;
+  });
+  document.getElementById("selectAllVideos").addEventListener("change", event => document.querySelectorAll("[data-select-video]").forEach(input => { input.checked = event.target.checked; }));
+  document.getElementById("bulkPublishButton").addEventListener("click", () => bulkUpdateVideos("published"));
+  document.getElementById("bulkDraftButton").addEventListener("click", () => bulkUpdateVideos("draft"));
+  document.getElementById("bulkDeleteButton").addEventListener("click", () => {
+    const ids = selectedAdminVideoIds();
+    if (!ids.length) { showToast("Select at least one video first.", true); return; }
+    confirmAction(`Delete ${ids.length} selected video${ids.length === 1 ? "" : "s"}? This cannot be undone.`, async () => {
+      await Promise.all(ids.map(id => db.ref(`videos/${id}`).remove()));
+      showToast(`${ids.length} videos deleted.`);
+      document.getElementById("selectAllVideos").checked = false;
+    });
+  });
   document.getElementById("adminCategoryList").addEventListener("click", handleCategoryAction);
   document.getElementById("confirmCancel").addEventListener("click", () => document.getElementById("confirmModal").hidden = true);
 }
@@ -510,9 +732,17 @@ async function saveVideo(event) {
   if (!title || !thumbnail || !videoUrl || !category) { showToast("Complete all required fields.", true); return; }
   if (extractDriveFileId(thumbnail) === null && !isValidUrl(thumbnail)) { showToast("Enter a valid thumbnail URL or Google Drive link.", true); return; }
   if (extractDriveFileId(videoUrl) === null && !isValidUrl(videoUrl)) { showToast("Enter a valid video URL or Google Drive link.", true); return; }
+  const qualityLines = document.getElementById("videoQualities").value.split("\n").map(line => line.trim()).filter(Boolean);
+  const qualities = qualityLines.map(line => {
+    const separator = line.indexOf("=");
+    return separator > 0 ? { label: line.slice(0, separator).trim(), url: line.slice(separator + 1).trim() } : null;
+  });
+  if (qualities.some(item => !item?.label || !isValidUrl(item.url))) { showToast("Enter additional qualities as label=https://direct-video-url, one per line.", true); return; }
+  const subtitleUrl = document.getElementById("videoSubtitleUrl").value.trim();
+  if (subtitleUrl && !isValidUrl(subtitleUrl)) { showToast("Enter a valid subtitle URL.", true); return; }
   const editingId = document.getElementById("editingVideoId").value;
   const existing = adminVideos.find(item => item.id === editingId);
-  const data = { title, thumbnail, videoUrl, category, tags: document.getElementById("videoTags").value.trim(), description: document.getElementById("videoDescription").value.trim(), featured: document.getElementById("videoFeatured").value === "true", status: document.getElementById("videoStatus").value, views: Number(existing?.views || 0), createdAt: Number(existing?.createdAt || Date.now()) };
+  const data = { title, thumbnail, videoUrl, qualities, subtitleUrl, subtitleLabel: document.getElementById("videoSubtitleLabel").value.trim(), subtitleLang: document.getElementById("videoSubtitleLang").value.trim() || "en", category, tags: document.getElementById("videoTags").value.trim(), description: document.getElementById("videoDescription").value.trim(), featured: document.getElementById("videoFeatured").value === "true", status: document.getElementById("videoStatus").value, views: Number(existing?.views || 0), createdAt: Number(existing?.createdAt || Date.now()) };
   try {
     if (editingId) await db.ref(`videos/${editingId}`).update(data);
     else await db.ref("videos").push(data);
@@ -524,6 +754,10 @@ async function saveVideo(event) {
 function isValidUrl(value) { try { const url = new URL(value); return url.protocol === "https:" || url.protocol === "http:"; } catch (_) { return false; } }
 function resetVideoForm() {
   document.getElementById("videoForm").reset();
+  document.getElementById("videoQualities").value = "";
+  document.getElementById("videoSubtitleUrl").value = "";
+  document.getElementById("videoSubtitleLabel").value = "";
+  document.getElementById("videoSubtitleLang").value = "";
   document.getElementById("editingVideoId").value = "";
   document.getElementById("videoFormTitle").textContent = "Add a video";
   document.getElementById("saveVideoButton").textContent = "ADD VIDEO";
@@ -536,6 +770,10 @@ function editVideo(id) {
   document.getElementById("videoTitle").value = video.title || "";
   document.getElementById("videoThumbnail").value = video.thumbnail || "";
   document.getElementById("videoUrl").value = video.videoUrl || "";
+  document.getElementById("videoQualities").value = (Array.isArray(video.qualities) ? video.qualities : Object.values(video.qualities || {})).map(item => `${item.label}=${item.url}`).join("\n");
+  document.getElementById("videoSubtitleUrl").value = video.subtitleUrl || "";
+  document.getElementById("videoSubtitleLabel").value = video.subtitleLabel || "";
+  document.getElementById("videoSubtitleLang").value = video.subtitleLang || "";
   document.getElementById("videoTags").value = video.tags || "";
   document.getElementById("videoDescription").value = video.description || "";
   document.getElementById("videoFeatured").value = String(Boolean(video.featured));
@@ -642,6 +880,17 @@ async function saveSettings(event) {
   catch (error) { showToast(`Could not save settings: ${error.message}`, true); }
 }
 
+// Short muted previews run only while a desktop pointer hovers a video card.
+document.addEventListener("pointerover", event => {
+  if (event.pointerType === "touch") return;
+  const card = event.target.closest(".video-card, .top-video-card");
+  if (card && !card.contains(event.relatedTarget)) startCardPreview(card);
+});
+document.addEventListener("pointerout", event => {
+  const card = event.target.closest(".video-card, .top-video-card");
+  if (card && !card.contains(event.relatedTarget)) stopCardPreview(card);
+});
+
 // Event delegation handles catalog cards, including cards refreshed by live Firebase updates.
 window.addEventListener("hashchange", () => {
   if (!document.getElementById("heroSection")) return;
@@ -659,6 +908,25 @@ window.addEventListener("hashchange", () => {
   }
 });
 document.addEventListener("click", event => {
+  const watchlistButton = event.target.closest("[data-toggle-watchlist]");
+  if (watchlistButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    const id = watchlistButton.dataset.toggleWatchlist;
+    const saved = readStoredList("rizviWatchlist");
+    const next = saved.includes(id) ? saved.filter(item => item !== id) : [...saved, id];
+    writeStoredList("rizviWatchlist", next);
+    renderPublic();
+    const currentToggle = [...document.querySelectorAll("#videoPage [data-toggle-watchlist]")].find(button => button.dataset.toggleWatchlist === id);
+    if (currentToggle) {
+      const isSaved = next.includes(id);
+      currentToggle.setAttribute("aria-pressed", String(isSaved));
+      currentToggle.setAttribute("aria-label", `${isSaved ? "Remove from" : "Add to"} watchlist`);
+      currentToggle.classList.toggle("saved", isSaved);
+      currentToggle.textContent = isSaved ? "♥" : "＋";
+    }
+    return;
+  }
   const pageButton = event.target.closest("[data-all-videos-page]");
   if (pageButton) {
     publicState.allVideosPage = Number(pageButton.dataset.allVideosPage) || 1;
@@ -681,6 +949,19 @@ document.addEventListener("click", event => {
   if (event.target.closest("#backToCatalog")) closeVideo();
 });
 document.addEventListener("keydown", event => { if ((event.key === "Enter" || event.key === " ") && event.target.matches(".video-card, .top-video-card")) { event.preventDefault(); openVideo(event.target.dataset.openVideo); } });
+document.getElementById("catalogCategory")?.addEventListener("change", event => {
+  publicState.selectedCategory = event.target.value;
+  publicState.allVideosPage = 1;
+  publicState.currentPage = "allVideos";
+  history.replaceState(null, "", `${location.pathname}${location.search}#allVideos`);
+  renderPublic();
+  document.getElementById("allVideos").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.getElementById("catalogSort")?.addEventListener("change", event => {
+  publicState.sortMode = event.target.value;
+  publicState.allVideosPage = 1;
+  renderPublic();
+});
 if (document.getElementById("searchForm")) {
   document.getElementById("searchForm").addEventListener("submit", event => { event.preventDefault(); renderSearch(); if (!document.getElementById("searchSection").hidden) document.getElementById("searchSection").scrollIntoView({ behavior:"smooth" }); });
   document.getElementById("searchInput").addEventListener("input", () => { document.getElementById("clearSearch").hidden = !document.getElementById("searchInput").value; renderSearch(); });
