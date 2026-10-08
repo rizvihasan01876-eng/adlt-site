@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#090b10">
-  <meta name="description" content="Discover movies and videos on RIZVI.NET.">
-  <title>RIZVI.NET — Watch something great</title>
+  <meta name="description" content="Discover movies and videos on VIDNET.BD.">
+  <title>VIDNET.BD — Watch something great</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="age-gate-active">
+<body>
   <header class="site-header">
-    <a class="brand" href="#home" aria-label="RIZVI.NET home">RIZVI<span>.NET</span></a>
+    <a class="brand" href="#home" aria-label="VIDNET.BD home">VIDNET<span>.BD</span></a>
     <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mainNav">☰</button>
     <nav class="main-nav" id="mainNav" aria-label="Main navigation">
       <a href="#home">Home</a><a href="#categories">Categories</a><a href="#trending">Trending</a><a href="#latest">Latest</a><a href="#allVideos">All Videos</a><a href="#watchlist">Watchlist</a><a href="Admin.html">Login</a>
@@ -21,10 +21,10 @@
     <button class="mobile-search-toggle" id="mobileSearchToggle" aria-label="Open search">⌕</button>
   </header>
 
-  <aside id="welcomeBanner" class="welcome-banner" role="status" aria-live="polite" aria-label="Welcome to RIZVI.NET">
+  <aside id="welcomeBanner" class="welcome-banner" role="status" aria-live="polite" aria-label="Welcome to VIDNET.BD" hidden>
     <div class="welcome-banner-mark" aria-hidden="true">R</div>
     <div class="welcome-banner-copy">
-      <span class="eyebrow">WELCOME TO RIZVI.NET</span>
+      <span class="eyebrow">WELCOME TO VIDNET.BD</span>
       <p>Your next great watch starts here. Discover handpicked movies and fresh releases.</p>
     </div>
     <button id="closeWelcomeBanner" class="welcome-banner-close" type="button" aria-label="Close welcome banner">×</button>
@@ -38,7 +38,7 @@
       <div id="searchResults" class="video-grid"></div>
     </section>
     <section id="trending" class="content-section">
-      <div class="section-heading"><div><span class="eyebrow">POPULAR RIGHT NOW</span><h2>Trending videos</h2></div><span class="heading-mark">↗</span></div>
+      <div class="section-heading"><div><span class="eyebrow">POPULAR RIGHT NOW</span><h2>Trending videos</h2></div></div>
       <div class="ad-slot section-ad-slot" data-ad-slot="trendingBanner"></div>
       <div id="trendingGrid" class="video-grid"><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div><div class="card-skeleton skeleton"></div></div>
     </section>
@@ -68,14 +68,25 @@
     <div class="ad-slot" data-ad-slot="footerBanner"></div>
     <div class="ad-slot social-ad-slot" data-ad-slot="socialAdsBar"></div>
   </main>
-  <footer class="site-footer"><a class="brand" href="#home">RIZVI<span>.NET</span></a><p>© 2026 RIZVI.NET <span>·</span> Stories worth watching.</p></footer>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-main">
+        <a class="brand" href="#home" aria-label="VIDNET.BD home">VIDNET<span>.BD</span></a>
+        <p class="site-footer-tagline">Stories worth watching. <span>Discover your next favorite.</span></p>
+      </div>
+      <div class="site-footer-bottom">
+        <span>© 2026 VIDNET.BD</span>
+        <span class="site-footer-note">YOUR NEXT GREAT WATCH STARTS HERE</span>
+      </div>
+    </div>
+  </footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="ageGate" class="age-gate" role="dialog" aria-modal="true" aria-labelledby="ageGateTitle" aria-describedby="ageGateDescription">
     <section class="age-gate-card">
       <span class="age-gate-badge" aria-hidden="true">18+</span>
       <span class="eyebrow">AGE VERIFICATION</span>
       <h1 id="ageGateTitle">18+ AGE VERIFICATION</h1>
-      <p id="ageGateDescription">You must be 18 years or older to enter this website.</p>
+      <p id="ageGateDescription">This category is for adults 18 years or older. Please verify your age to continue.</p>
       <div class="age-gate-actions">
         <button id="ageGateEnter" class="button button-primary" type="button">Enter / I’m 18+</button>
         <button id="ageGateExit" class="button button-ghost" type="button">Exit</button>
@@ -89,18 +100,36 @@
       const enter = document.getElementById("ageGateEnter");
       const exit = document.getElementById("ageGateExit");
       const message = document.getElementById("ageGateMessage");
-      try {
-        if (sessionStorage.getItem("rizviAgeVerified") === "yes") {
-          gate.hidden = true;
-          document.body.classList.remove("age-gate-active");
-        } else {
-          enter.focus();
-        }
-      } catch (_) { enter.focus(); }
+      let verified = false;
+      let pendingCategory = null;
+      let replayingClick = false;
+      try { verified = sessionStorage.getItem("rizvi18CategoryVerified") === "yes"; } catch (_) {}
+
+      gate.hidden = verified;
+      if (!verified) document.body.classList.add("age-gate-active");
+      document.addEventListener("click", event => {
+        if (replayingClick || verified) return;
+        const category = event.target.closest("#categoryList [data-category]");
+        if (!category || category.dataset.category.trim().toLowerCase() !== "18+") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        pendingCategory = category;
+        gate.hidden = false;
+        document.body.classList.add("age-gate-active");
+        enter.focus();
+      }, true);
+
       enter.addEventListener("click", () => {
-        try { sessionStorage.setItem("rizviAgeVerified", "yes"); } catch (_) {}
+        verified = true;
+        try { sessionStorage.setItem("rizvi18CategoryVerified", "yes"); } catch (_) {}
         gate.hidden = true;
         document.body.classList.remove("age-gate-active");
+        if (pendingCategory?.isConnected) {
+          replayingClick = true;
+          pendingCategory.click();
+          replayingClick = false;
+        }
+        pendingCategory = null;
       });
       exit.addEventListener("click", () => {
         message.textContent = "You chose to exit. This page will close if your browser allows it.";
