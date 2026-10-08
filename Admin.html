@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#090b10">
-  <title>Admin — RIZVI.NET</title>
+  <title>Admin — VIDNET.BD</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="admin-body">
   <main id="loginView" class="login-wrap">
-    <a class="brand login-brand" id="portalBrand" href="index.html" aria-label="RIZVI.NET home">RIZVI<span>.NET</span></a>
+    <a class="brand login-brand" id="portalBrand" href="index.html" aria-label="VIDNET.BD home">VIDNET<span>.BD</span></a>
     <section class="login-card">
-      <span class="eyebrow">YOUR RIZVI.NET ACCOUNT</span><h1 id="authHeading">Welcome back</h1><p id="authDescription" class="muted">Sign in or create an account to get started.</p>
+      <span class="eyebrow">YOUR VIDNET.BD ACCOUNT</span><h1 id="authHeading">Welcome back</h1><p id="authDescription" class="muted">Sign in or create an account to get started.</p>
       <form id="loginForm" class="stack-form">
         <label id="displayNameLabel" hidden>Name<input id="displayNameInput" type="text" autocomplete="name" maxlength="80"></label>
         <label>Email<input id="loginEmail" type="email" autocomplete="username" required></label>
@@ -25,7 +25,7 @@
   </main>
 
   <main id="accountView" class="login-wrap" hidden>
-    <a class="brand login-brand" id="accountBrand" href="#account" aria-label="RIZVI.NET account">RIZVI<span>.NET</span></a>
+    <a class="brand login-brand" id="accountBrand" href="#account" aria-label="VIDNET.BD account">VIDNET<span>.BD</span></a>
     <section class="login-card account-card">
       <span class="eyebrow">YOUR ACCOUNT</span><h1>Account details</h1>
       <dl class="account-details"><div><dt>Name</dt><dd id="accountName">—</dd></div><div><dt>Email</dt><dd id="accountEmail">—</dd></div><div><dt>Account ID</dt><dd id="accountUid">—</dd></div><div><dt>Joined</dt><dd id="accountCreated">—</dd></div></dl>
@@ -37,7 +37,7 @@
 
   <div id="adminApp" class="admin-layout" hidden>
     <aside class="admin-sidebar">
-      <a class="brand" href="index.html">RIZVI<span>.NET</span></a>
+      <a class="brand" href="index.html">VIDNET<span>.BD</span></a>
       <p class="sidebar-label">WORKSPACE</p>
       <button class="admin-menu-toggle" id="adminMenuToggle" type="button" aria-expanded="false" aria-controls="adminNav" aria-label="Open admin menu">☰ <span>Menu</span></button>
       <nav class="admin-nav" id="adminNav" aria-label="Admin navigation">
@@ -52,7 +52,7 @@
       <a class="sidebar-home" href="index.html">← View website</a>
     </aside>
     <div class="admin-main">
-      <header class="admin-topbar"><div><span class="eyebrow">RIZVI.NET ADMIN</span><h1 id="adminPageTitle">Dashboard</h1></div><div class="admin-user"><span id="adminEmail"></span></div></header>
+      <header class="admin-topbar"><div><span class="eyebrow">VIDNET.BD ADMIN</span><h1 id="adminPageTitle">Dashboard</h1></div><div class="admin-user"><span id="adminEmail"></span></div></header>
       <div id="adminError" class="notice notice-error" hidden></div>
       <section id="dashboardPanel" class="admin-panel">
         <div class="stats-grid">
@@ -105,7 +105,7 @@
       </section>
       <section id="settingsPanel" class="admin-panel" hidden>
         <div class="admin-card"><div class="section-heading"><div><span class="eyebrow">SITE CONFIGURATION</span><h2>Advertisement slots</h2></div></div>
-          <p class="muted">Configure each placement separately to keep ads organized. Top and bottom banners share the top-banner creative unless you set a separate footer ad. Changes save to Firebase and update the public site.</p>
+          <p class="muted">Configure every placement with separate desktop/PC and mobile creatives. Visitors see only the version for their current device; changes save to Firebase and update the public site.</p>
           <div class="ad-placement-guide">
             <h3>Adsterra setup</h3>
             <ul>
@@ -113,34 +113,35 @@
               <li>Use Adsterra <strong>Banner</strong> code for Top, Trending, After 12 videos, and Bottom placements. For the Video page slot below the player, you can use a Banner unit or the complete <strong>TSVideoShorts</strong> snippet; the snippet displays in that slot, not inside the movie stream.</li>
               <li>Use Adsterra <strong>Social Bar</strong> code only in the Social Ads Bar box. Social Bar is an overlay format, not a regular banner.</li>
               <li>A Smartlink/direct URL is not banner embed code; it only creates a clickable link. Create the appropriate Adsterra ad unit and paste its full code instead.</li>
-              <li>For multiple placements, create separate Adsterra ad units and use each unit's own code. Enable the matching checkbox and save.</li>
+              <li>For each placement, paste the PC/desktop ad code in its Desktop box and the phone/tablet code in its Mobile box. They are selected automatically by screen width; leave a device box empty if you do not want an ad shown there.</li>
+              <li>Create separate Adsterra ad units for placements that need distinct creatives. Enable the placement checkbox and save.</li>
             </ul>
             <p class="fine-print">Adsterra controls the delivered creative dimensions and whether an ad fills. Use its generated code unchanged; do not paste only part of the snippet. Ad visibility may also depend on site approval, visitor region, available campaigns, or ad blockers.</p>
           </div>
           <div class="ad-placement-guide">
             <h3>Placement &amp; size guide</h3>
             <ul>
-              <li><strong>Top banner:</strong> appears below the site header on every public page. Use 970 × 90 px desktop; 320 × 100 px mobile (responsive banner).</li>
+              <li><strong>Top banner:</strong> appears below the site header on every public page. Use 970 × 90 px desktop; 320 × 100 px mobile.</li>
               <li><strong>Trending section:</strong> appears under the Trending heading, before its video cards on the home page. Use a 300 × 250 px rectangle, max 336 × 280 px.</li>
               <li><strong>After 12 videos:</strong> appears in All Videos after row 4 on desktop (and after 12 cards on mobile). Use a 300 × 250 px rectangle, max 336 × 280 px.</li>
               <li><strong>Video page ad:</strong> appears directly under the player. Use an Adsterra responsive banner, or paste the complete TSVideoShorts div + script snippet here to show its video ad widget on video pages.</li>
               <li><strong>Bottom banner:</strong> appears at the end of each public page. Leave its code empty to reuse the top banner; otherwise use the same responsive banner sizes.</li>
               <li><strong>Social Ads Bar:</strong> its Adsterra code is loaded on every public page, including video pages. Adsterra controls the bar's overlay position and behavior; paste its Social Bar code only in this slot.</li>
             </ul>
-            <p class="fine-print">Use responsive provider code when available. Image URLs are scaled to fit their placement. Ads may not fill if the provider blocks embedding, the ad blocker is on, or the provider has no available ad.</p>
+            <p class="fine-print">Desktop/PC creative is used at 721 px and wider; mobile creative is used at 720 px and narrower. Resizing the browser switches the displayed version. Use responsive provider code when available. Image URLs are scaled to fit their placement. Ads may not fill if the provider blocks embedding, the ad blocker is on, or the provider has no available ad.</p>
           </div>
           <form id="settingsForm" class="stack-form settings-form">
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="topBanner"> Top banner — all public pages</label><textarea data-ad-html="topBanner" rows="3" placeholder="Responsive banner URL or provider HTML/embed code"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="trendingBanner"> Trending — below heading, before cards</label><textarea data-ad-html="trendingBanner" rows="3" placeholder="300 × 250 image URL or provider HTML/embed code"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenVideoCards"> All Videos — after 12 cards</label><textarea data-ad-html="betweenVideoCards" rows="3" placeholder="300 × 250 image URL or provider HTML/embed code"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="videoPageBanner"> Video page — below player</label><textarea data-ad-html="videoPageBanner" rows="3" placeholder="Adsterra banner code or full TSVideoShorts snippet"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="footerBanner"> Bottom banner — all public pages</label><textarea data-ad-html="footerBanner" rows="3" placeholder="Optional: leave blank to reuse top banner"></textarea></div>
-            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="socialAdsBar"> Social Ads Bar — above footer on all public pages</label><textarea data-ad-html="socialAdsBar" rows="3" placeholder="Paste responsive social bar provider HTML/embed code"></textarea></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="topBanner"> Top banner — all public pages</label><div class="ad-device-fields"><label>Desktop / PC<textarea data-ad-html="topBanner" data-ad-device="desktop" rows="3" placeholder="970 × 90 banner URL or provider code"></textarea></label><label>Mobile / phone<textarea data-ad-html="topBanner" data-ad-device="mobile" rows="3" placeholder="320 × 100 banner URL or provider code"></textarea></label></div></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="trendingBanner"> Trending — below heading, before cards</label><div class="ad-device-fields"><label>Desktop / PC<textarea data-ad-html="trendingBanner" data-ad-device="desktop" rows="3" placeholder="300 × 250 image URL or provider code"></textarea></label><label>Mobile / phone<textarea data-ad-html="trendingBanner" data-ad-device="mobile" rows="3" placeholder="Mobile image URL or provider code"></textarea></label></div></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="betweenVideoCards"> All Videos — after 12 cards</label><div class="ad-device-fields"><label>Desktop / PC<textarea data-ad-html="betweenVideoCards" data-ad-device="desktop" rows="3" placeholder="300 × 250 image URL or provider code"></textarea></label><label>Mobile / phone<textarea data-ad-html="betweenVideoCards" data-ad-device="mobile" rows="3" placeholder="Mobile image URL or provider code"></textarea></label></div></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="videoPageBanner"> Video page — below player</label><div class="ad-device-fields"><label>Desktop / PC<textarea data-ad-html="videoPageBanner" data-ad-device="desktop" rows="3" placeholder="Banner code or TSVideoShorts snippet"></textarea></label><label>Mobile / phone<textarea data-ad-html="videoPageBanner" data-ad-device="mobile" rows="3" placeholder="Mobile banner code or snippet"></textarea></label></div></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="footerBanner"> Bottom banner — all public pages</label><div class="ad-device-fields"><label>Desktop / PC<textarea data-ad-html="footerBanner" data-ad-device="desktop" rows="3" placeholder="Optional: blank reuses top desktop ad"></textarea></label><label>Mobile / phone<textarea data-ad-html="footerBanner" data-ad-device="mobile" rows="3" placeholder="Optional: blank reuses top mobile ad"></textarea></label></div></div>
+            <div class="ad-setting"><label class="check-label"><input type="checkbox" data-ad-enabled="socialAdsBar"> Social Ads Bar — above footer on all public pages</label><div class="ad-device-fields"><label>Desktop / PC<textarea data-ad-html="socialAdsBar" data-ad-device="desktop" rows="3" placeholder="Desktop Social Bar provider code"></textarea></label><label>Mobile / phone<textarea data-ad-html="socialAdsBar" data-ad-device="mobile" rows="3" placeholder="Mobile Social Bar provider code"></textarea></label></div></div>
             <button class="button button-primary" type="submit">Save settings</button>
           </form>
         </div>
         <div class="admin-card rules-card"><div class="section-heading"><div><span class="eyebrow">SECURITY</span><h2>Realtime Database rules</h2></div></div>
-          <p class="muted">Replace <code>YOUR_ADMIN_UID</code> with your administrator’s Firebase Authentication UID in these rules. Public visitors can only query published videos / enabled categories and increment a published video’s view count by one.</p>
+          <p class="muted">Replace <code>YOUR_ADMIN_UID</code> with your administrator’s Firebase Authentication UID in these rules. Public visitors can query published videos / enabled categories, increment published video views, and use the limited Like and Comment features.</p>
           <pre class="rules-code"><code>{
   "rules": {
     "videos": {
@@ -171,10 +172,31 @@
         ".read": "auth != null &amp;&amp; auth.uid == $uid",
         ".write": "auth != null &amp;&amp; auth.uid == $uid"
       }
+    },
+    "engagement": {
+      "$videoId": {
+        ".read": "root.child('videos').child($videoId).child('status').val() == 'published'",
+        "likes": {
+          "$visitorId": {
+            ".write": "root.child('videos').child($videoId).child('status').val() == 'published' &amp;&amp; ((!data.exists() &amp;&amp; newData.val() == true) || (data.val() == true &amp;&amp; !newData.exists()))",
+            ".validate": "newData.val() == true"
+          }
+        },
+        "comments": {
+          "$commentId": {
+            ".write": "root.child('videos').child($videoId).child('status').val() == 'published' &amp;&amp; !data.exists() &amp;&amp; newData.hasChildren(['name', 'text', 'createdAt'])",
+            ".validate": "newData.hasChildren(['name', 'text', 'createdAt'])",
+            "name": { ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 40" },
+            "text": { ".validate": "newData.isString() &amp;&amp; newData.val().length &gt; 0 &amp;&amp; newData.val().length &lt;= 500" },
+            "createdAt": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
     }
   }
 }</code></pre>
-          <p class="fine-print">Paste this JSON into Realtime Database → Rules after replacing the UID. Keep the <code>views</code> child rule: it permits only a single +1 transaction on published videos; all other video and category writes require the admin UID. The demo connection signal is written under <code>connectionSignals/{admin UID}</code>. Add the project’s web config and Realtime Database URL in <code>script.js</code>.</p>
+          <p class="fine-print">Paste this JSON into Realtime Database → Rules after replacing the UID. Keep the <code>views</code> child rule: it permits only a single +1 transaction on published videos; all other video and category writes require the admin UID. The <code>engagement</code> rules allow public Like toggles and comments limited to 40-character names and 500-character messages. The demo connection signal is written under <code>connectionSignals/{admin UID}</code>. Add the project’s web config and Realtime Database URL in <code>script.js</code>.</p>
         </div>
       </section>
     </div>
