@@ -1,4 +1,4 @@
-/* RIZVI.NET: Firebase-backed public catalog and admin dashboard. */
+/* VIDNET.BD: Firebase-backed public catalog and admin dashboard. */
 const firebaseConfig = {
   // Set databaseURL to the URL shown in Firebase Console > Realtime Database.
   apiKey: "AIzaSyAxNf9AVoZPxo8fRAPBdW-Y2WFvUK4BI58",
@@ -143,21 +143,55 @@ function formatDate(timestamp) {
 }
 function imageMarkup(url, alt, className = "") {
   const src = convertDriveImageUrl(url);
-  if (!src) return `<div class="image-placeholder ${className}">RIZVI.NET</div>`;
-  return `<img class="${className}" src="${esc(src)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'image-placeholder',textContent:'RIZVI.NET'}))">`;
+  if (!src) return `<div class="image-placeholder ${className}">VIDNET.BD</div>`;
+  return `<img class="${className}" src="${esc(src)}" alt="${esc(alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'image-placeholder',textContent:'VIDNET.BD'}))">`;
 }
 function showFirebaseSetupError(target) {
   if (target) target.innerHTML = `<div class="error-state">Firebase is not configured yet. Add your project settings in <code>script.js</code> to load the catalog.</div>`;
 }
 
 // Public catalog
-const publicState = { videos: [], categories: [], selectedCategory: "", sortMode: "latest", allVideosPage: 1, openedViews: new Set(), currentVideoId: null, currentPage: "home", previousPage: "home", settings: {} };
+const publicState = { videos: [], categories: [], selectedCategory: "", sortMode: "latest", allVideosPage: 1, openedViews: new Set(), currentVideoId: null, currentPage: "home", previousPage: "home", settings: {}, engagementRef: null };
 function readStoredList(key) {
   try { const value = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; } catch (_) { return []; }
 }
 function writeStoredList(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
 function readProgress() {
   try { return JSON.parse(localStorage.getItem("rizviWatchProgress") || "{}"); } catch (_) { return {}; }
+}
+function getEngagementVisitorId() {
+  let id = "";
+  try { id = localStorage.getItem("vidnetEngagementVisitor") || ""; } catch (_) {}
+  if (!id) {
+    id = window.crypto?.randomUUID?.() || `visitor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try { localStorage.setItem("vidnetEngagementVisitor", id); } catch (_) {}
+  }
+  return id.replace(/[.#$\[\]\/]/g, "_");
+}
+function renderEngagement(snapshot) {
+  const data = snapshot?.val() || {};
+  const likes = data.likes || {};
+  const likeButton = document.querySelector("[data-like-video]");
+  if (likeButton) {
+    const liked = likes[getEngagementVisitorId()] === true;
+    likeButton.classList.toggle("is-liked", liked);
+    likeButton.setAttribute("aria-pressed", String(liked));
+    likeButton.innerHTML = `${liked ? "♥" : "♡"} <span>Like</span> <strong>${Object.values(likes).filter(value => value === true).length}</strong>`;
+  }
+  const list = document.getElementById("videoCommentsList");
+  if (!list) return;
+  const comments = toArray(data.comments).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  list.innerHTML = comments.length ? comments.map(comment => `<article class="video-comment"><div><strong>${esc(comment.name || "Viewer")}</strong><time>${esc(formatDate(comment.createdAt))}</time></div><p>${esc(comment.text || "")}</p></article>`).join("") : `<p class="muted comments-empty">No comments yet. Be the first to comment.</p>`;
+}
+function listenForEngagement(videoId) {
+  publicState.engagementRef?.off();
+  if (!db) return;
+  const ref = db.ref(`engagement/${videoId}`);
+  publicState.engagementRef = ref;
+  ref.on("value", renderEngagement, () => {
+    const list = document.getElementById("videoCommentsList");
+    if (list) list.innerHTML = `<p class="muted comments-empty">Comments are unavailable right now.</p>`;
+  });
 }
 function showCatalogPage(page) {
   const validPages = ["home", "categories", "trending", "latest", "allVideos", "watchlist", "search"];
@@ -351,6 +385,8 @@ function activateAdScripts(slot) {
   });
 }
 function renderAdSlots() {
+  const device = window.matchMedia && window.matchMedia("(min-width: 721px)").matches ? "desktop" : "mobile";
+  const getDeviceHtml = setting => String(setting?.[`${device}Html`] ?? setting?.html ?? "").trim();
   document.querySelectorAll(".ad-slot[data-ad-slot]").forEach(slot => {
     const key = slot.dataset.adSlot;
     const ads = publicState.settings?.ads || {};
@@ -358,9 +394,9 @@ function renderAdSlots() {
     const legacyTrendingAd = ads.betweenFeaturedLatest;
     let setting = configured;
     if (key === "trendingBanner" && configured?.enabled !== true && legacyTrendingAd?.enabled === true) setting = legacyTrendingAd;
-    if (key === "footerBanner" && (!configured?.enabled || !String(configured.html || "").trim()) && ads.topBanner?.enabled === true) setting = ads.topBanner;
+    if (key === "footerBanner" && (!configured?.enabled || !getDeviceHtml(configured)) && ads.topBanner?.enabled === true) setting = ads.topBanner;
     const enabled = setting?.enabled === true;
-    const html = String(setting?.html || "").trim();
+    const html = getDeviceHtml(setting);
     const markup = enabled ? adMarkup(html) : "";
     slot.classList.toggle("has-ad", !!markup);
     if (slot.dataset.renderedMarkup === markup) return;
@@ -369,6 +405,11 @@ function renderAdSlots() {
     activateAdScripts(slot);
   });
 }
+let adViewportTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(adViewportTimer);
+  adViewportTimer = setTimeout(renderAdSlots, 160);
+});
 function openVideo(id) {
   const video = publicState.videos.find(item => item.id === id && item.status === "published");
   if (!video) { showToast("This video is unavailable.", true); return; }
@@ -407,7 +448,57 @@ function openVideo(id) {
         : `<div class="player-fallback"><strong>This website does not allow its video to be embedded here.</strong><span class="muted">Try a YouTube, Vimeo, Dailymotion, TikTok, Facebook, Streamable, Drive preview, or direct MP4/WebM link instead.</span><a class="button button-primary" href="${esc(video.videoUrl)}" target="_blank" rel="noopener noreferrer">Open video on its website ↗</a></div>`;
   const saved = readStoredList("rizviWatchlist").includes(id);
   const qualityControl = supportsHtmlVideo && qualities.length ? `<label class="quality-control">Quality <select id="qualitySelect"><option value="${esc(source)}">Original</option>${qualities.map(item => `<option value="${esc(item.url)}">${esc(item.label)}</option>`).join("")}</select></label>` : "";
-  page.innerHTML = `<div class="video-page-top"><button class="text-button" id="backToCatalog">← Back to catalog</button><span class="eyebrow">NOW PLAYING</span></div><div class="player-wrap">${playerMarkup}<div id="playerFallback" class="player-fallback" hidden><strong>This video could not be loaded.</strong><span class="muted">Check that the link is public and allows playback or embedding.</span><a class="button button-primary" href="${esc(video.videoUrl)}" target="_blank" rel="noopener noreferrer">Open video on its website ↗</a></div></div><div class="player-extras">${qualityControl}</div><div class="ad-slot video-ad-slot" data-ad-slot="videoPageBanner"></div><div class="video-detail-layout"><article class="video-detail"><div class="video-title-row"><h1>${esc(video.title)}</h1><button class="watchlist-toggle player-watchlist-toggle${saved ? " saved" : ""}" type="button" data-toggle-watchlist="${esc(id)}" aria-pressed="${saved}" aria-label="${saved ? "Remove from" : "Add to"} watchlist">${saved ? "♥" : "＋"}</button></div><div class="card-info video-detail-meta"><span>${(Number(video.views || 0) + (publicState.openedViews.has(id) ? 1 : 0)).toLocaleString()} views</span><span>${esc(formatDate(video.createdAt))}</span>${video.tags ? `<span>Tags: ${esc(String(video.tags))}</span>` : ""}</div><details class="video-description-box"><summary><strong>${esc(video.category || "Uncategorized")}</strong><span class="description-preview">${esc(video.description || "No description provided.")}</span><span class="description-more">more</span><span class="description-less">less</span></summary><div class="video-description">${esc(video.description || "No description provided.")}</div></details></article><section class="related-section" aria-label="Suggested videos"><div class="section-heading"><div><span class="eyebrow">KEEP WATCHING</span><h2>Suggested videos</h2></div></div><div class="related-list" id="relatedVideos"></div></section></div>`;
+  page.innerHTML = `<div class="video-page-top"><button class="text-button" id="backToCatalog">← Back to catalog</button><span class="eyebrow">NOW PLAYING</span></div><div class="player-wrap">${playerMarkup}<div id="playerFallback" class="player-fallback" hidden><strong>This video could not be loaded.</strong><span class="muted">Check that the link is public and allows playback or embedding.</span><a class="button button-primary" href="${esc(video.videoUrl)}" target="_blank" rel="noopener noreferrer">Open video on its website ↗</a></div></div><div class="player-extras">${qualityControl}</div><div class="ad-slot video-ad-slot" data-ad-slot="videoPageBanner"></div><div class="video-detail-layout"><article class="video-detail"><div class="video-title-row"><h1>${esc(video.title)}</h1><button class="watchlist-toggle player-watchlist-toggle${saved ? " saved" : ""}" type="button" data-toggle-watchlist="${esc(id)}" aria-pressed="${saved}" aria-label="${saved ? "Remove from" : "Add to"} watchlist">${saved ? "♥" : "＋"}</button></div><div class="card-info video-detail-meta"><span>${(Number(video.views || 0) + (publicState.openedViews.has(id) ? 1 : 0)).toLocaleString()} views</span><span>${esc(formatDate(video.createdAt))}</span>${video.tags ? `<span>Tags: ${esc(String(video.tags))}</span>` : ""}</div><div class="video-social-actions"><button class="video-social-button" id="videoLikeButton" type="button" data-like-video="${esc(id)}" aria-pressed="false">♡ <span>Like</span> <strong>0</strong></button><button class="video-social-button" id="videoShareButton" type="button">↗ <span>Share</span></button><button class="video-social-button" id="videoCopyLinkButton" type="button">⧉ <span>Copy link</span></button></div><details class="video-description-box"><summary><strong>${esc(video.category || "Uncategorized")}</strong><span class="description-preview">${esc(video.description || "No description provided.")}</span><span class="description-more">more</span><span class="description-less">less</span></summary><div class="video-description">${esc(video.description || "No description provided.")}</div></details><section class="video-comments" aria-labelledby="videoCommentsHeading"><h2 id="videoCommentsHeading">Comments</h2><form id="videoCommentForm" class="video-comment-form"><label>Your name<input id="videoCommentName" type="text" maxlength="40" required placeholder="Name"></label><label>Comment<textarea id="videoCommentText" maxlength="500" rows="3" required placeholder="Write a comment..."></textarea></label><button class="button button-primary" type="submit">POST COMMENT</button><small class="fine-print">Comments are public and visible to everyone.</small></form><div id="videoCommentsList" class="video-comments-list" aria-live="polite"><p class="muted comments-empty">Loading comments…</p></div></section></article><section class="related-section" aria-label="Suggested videos"><div class="section-heading"><div><span class="eyebrow">KEEP WATCHING</span><h2>Suggested videos</h2></div></div><div class="related-list" id="relatedVideos"></div></section></div>`;
+  const shareUrl = `${location.origin}${location.pathname}${location.search}#watch=${encodeURIComponent(id)}`;
+  document.getElementById("videoLikeButton").addEventListener("click", async event => {
+    if (!db) { showToast("Likes are unavailable right now.", true); return; }
+    const likeRef = db.ref(`engagement/${id}/likes/${getEngagementVisitorId()}`);
+    const alreadyLiked = event.currentTarget.getAttribute("aria-pressed") === "true";
+    try {
+      if (alreadyLiked) await likeRef.remove();
+      else await likeRef.set(true);
+    } catch (error) { showToast(`Could not update like: ${error.message}`, true); }
+  });
+  document.getElementById("videoShareButton").addEventListener("click", async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: video.title, url: shareUrl });
+      else { await navigator.clipboard.writeText(shareUrl); showToast("Video link copied."); }
+    } catch (error) {
+      if (error.name !== "AbortError") showToast("Could not share the video. Use Copy link instead.", true);
+    }
+  });
+  document.getElementById("videoCopyLinkButton").addEventListener("click", async () => {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(shareUrl);
+      else {
+        const temporary = document.createElement("textarea");
+        temporary.value = shareUrl;
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+        document.body.append(temporary);
+        temporary.select();
+        const copied = document.execCommand("copy");
+        temporary.remove();
+        if (!copied) throw new Error("Clipboard access is unavailable.");
+      }
+      showToast("Video link copied.");
+    } catch (error) { showToast(`Could not copy link: ${error.message}`, true); }
+  });
+  document.getElementById("videoCommentForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const name = document.getElementById("videoCommentName").value.trim();
+    const text = document.getElementById("videoCommentText").value.trim();
+    if (!name || !text) return;
+    if (!db) { showToast("Comments are unavailable right now.", true); return; }
+    try {
+      await db.ref(`engagement/${id}/comments`).push({ name, text, createdAt: firebase.database.ServerValue.TIMESTAMP });
+      try { localStorage.setItem("vidnetCommentName", name); } catch (_) {}
+      document.getElementById("videoCommentText").value = "";
+      showToast("Comment posted.");
+    } catch (error) { showToast(`Could not post comment: ${error.message}`, true); }
+  });
+  try { document.getElementById("videoCommentName").value = localStorage.getItem("vidnetCommentName") || ""; } catch (_) {}
+  listenForEngagement(id);
   const player = document.getElementById("videoPlayer");
   const fallback = document.getElementById("playerFallback");
   if (player?.tagName === "VIDEO") {
@@ -448,6 +539,8 @@ function openVideo(id) {
 function closeVideo(page = publicState.previousPage) {
   const player = document.getElementById("videoPlayer");
   if (player?.tagName === "VIDEO") player.pause();
+  publicState.engagementRef?.off();
+  publicState.engagementRef = null;
   publicState.currentVideoId = null;
   document.getElementById("videoPage").hidden = true;
   const targetPage = ["home", "categories", "trending", "latest", "allVideos", "watchlist"].includes(page) ? page : "home";
@@ -495,7 +588,7 @@ function startAdmin() {
   const setAuthMode = signup => {
     creatingAccount = signup;
     document.getElementById("authHeading").textContent = signup ? "Create your account" : "Welcome back";
-    document.getElementById("authDescription").textContent = signup ? "Sign up to create your RIZVI.NET account." : "Sign in to see your account details.";
+    document.getElementById("authDescription").textContent = signup ? "Sign up to create your VIDNET.BD account." : "Sign in to see your account details.";
     displayNameLabel.hidden = !signup;
     document.getElementById("displayNameInput").required = signup;
     document.getElementById("loginPassword").autocomplete = signup ? "new-password" : "current-password";
@@ -858,7 +951,8 @@ function fillSettings(settings) {
   document.querySelectorAll("[data-ad-html]").forEach(input => {
     const key = input.dataset.adHtml;
     const item = ads[key] || (key === "trendingBanner" ? ads.betweenFeaturedLatest : null) || {};
-    input.value = item.html || "";
+    const device = input.dataset.adDevice;
+    input.value = item[`${device}Html`] ?? item.html ?? "";
   });
   refreshTopVideoSelects(adminSettings.topVideos);
 }
@@ -875,7 +969,15 @@ async function saveTopVideos(event) {
 async function saveSettings(event) {
   event.preventDefault();
   const ads = {};
-  document.querySelectorAll("[data-ad-enabled]").forEach(input => { const key = input.dataset.adEnabled; ads[key] = { enabled: input.checked, html: document.querySelector(`[data-ad-html="${key}"]`).value }; });
+  document.querySelectorAll("[data-ad-enabled]").forEach(input => {
+    const key = input.dataset.adEnabled;
+    const fields = [...document.querySelectorAll("[data-ad-html]")].filter(field => field.dataset.adHtml === key);
+    ads[key] = {
+      enabled: input.checked,
+      desktopHtml: fields.find(field => field.dataset.adDevice === "desktop")?.value || "",
+      mobileHtml: fields.find(field => field.dataset.adDevice === "mobile")?.value || ""
+    };
+  });
   try { await db.ref("settings/ads").set(ads); showToast("Advertisement settings saved."); }
   catch (error) { showToast(`Could not save settings: ${error.message}`, true); }
 }
